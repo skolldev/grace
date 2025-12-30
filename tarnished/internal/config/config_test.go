@@ -287,3 +287,36 @@ func TestDefaultPaths(t *testing.T) {
 		t.Error("DefaultStatePath returned empty string")
 	}
 }
+
+func TestLoad_SensorsEnabledDefault(t *testing.T) {
+	resetViper()
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if cfg.SensorsEnabled {
+		t.Error("SensorsEnabled should default to false")
+	}
+}
+
+func TestLoad_SensorsEnabledEnv(t *testing.T) {
+	resetViper()
+
+	os.Setenv("GRACE_SERVER", "http://test.local")
+	os.Setenv("GRACE_SENSORS_ENABLED", "true")
+	defer func() {
+		os.Unsetenv("GRACE_SERVER")
+		os.Unsetenv("GRACE_SENSORS_ENABLED")
+	}()
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if !cfg.SensorsEnabled {
+		t.Error("SensorsEnabled should be true when GRACE_SENSORS_ENABLED=true")
+	}
+}

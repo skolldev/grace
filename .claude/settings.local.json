@@ -3,7 +3,8 @@
     "allow": [
       "Bash(.venv/Scripts/pytest tests/ -v)",
       "Bash(tree:*)",
-      "Bash(go test:*)"
+      "Bash(go test:*)",
+      "Bash(go build:*)"
     ]
   }
 }

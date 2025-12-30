@@ -47,3 +47,40 @@ class DeviceWithMetrics(DeviceResponse):
 class TokenResponse(BaseModel):
     token: str
     expires_at: datetime
+
+
+# Sensors
+class SensorInfo(BaseModel):
+    sensor_id: str  # hwinfo:temp:cpu_package
+    name: str  # Original HWiNFO name
+    sensor_type: str  # temperature, voltage, fan, etc.
+    unit: str  # C, V, RPM, etc.
+    source: str  # "hwinfo"
+
+
+class ReportSensorsRequest(BaseModel):
+    sensors: list[SensorInfo]
+
+
+class ReportSensorsResponse(BaseModel):
+    status: str
+    count: int
+
+
+class DeviceSensorResponse(BaseModel):
+    device_id: str
+    sensor_id: str
+    name: str
+    display_name: Optional[str]
+    sensor_type: str
+    unit: str
+    enabled: bool
+    source: str
+
+
+class UpdateSensorConfigRequest(BaseModel):
+    enabled: list[str]  # List of sensor_ids to enable
+
+
+class SensorConfigResponse(BaseModel):
+    enabled: list[str]  # List of enabled sensor_ids

@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from server.core.database import get_session
-from server.models.models import Device, Metric, RegistrationToken, utc_now
+from server.models.models import Device, DeviceSensor, Metric, RegistrationToken, utc_now
 from server.models.schemas import (
     RegisterRequest,
     RegisterResponse,
@@ -81,6 +81,13 @@ def delete_device(device_id: str, session: Session = Depends(get_session)):
     metrics = session.exec(select(Metric).where(Metric.device_id == device_id)).all()
     for m in metrics:
         session.delete(m)
+
+    # Delete associated sensors
+    device_sensors = session.exec(
+        select(DeviceSensor).where(DeviceSensor.device_id == device_id)
+    ).all()
+    for s in device_sensors:
+        session.delete(s)
 
     session.delete(device)
     session.commit()

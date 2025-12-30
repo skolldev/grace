@@ -42,11 +42,12 @@ var virtualFSTypes = map[string]bool{
 }
 
 type Metrics struct {
-	CPU           CPUMetrics     `json:"cpu"`
-	RAM           RAMMetrics     `json:"ram"`
-	Disk          []DiskMetrics  `json:"disk"`
-	Network       NetworkMetrics `json:"network"`
-	UptimeSeconds uint64         `json:"uptime_seconds"`
+	CPU           CPUMetrics         `json:"cpu"`
+	RAM           RAMMetrics         `json:"ram"`
+	Disk          []DiskMetrics      `json:"disk"`
+	Network       NetworkMetrics     `json:"network"`
+	UptimeSeconds uint64             `json:"uptime_seconds"`
+	Sensors       map[string]float64 `json:"sensors,omitempty"`
 }
 
 type CPUMetrics struct {

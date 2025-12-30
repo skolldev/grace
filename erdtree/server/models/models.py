@@ -47,3 +47,16 @@ class Log(SQLModel, table=True):
     type: str = Field(default="info", index=True)  # info, warning, error
     timestamp: datetime = Field(default_factory=utc_now, index=True)
     source: str = Field(index=True)  # e.g., "devices", "metrics", "admin"
+
+
+class DeviceSensor(SQLModel, table=True):
+    __tablename__ = "device_sensors"
+
+    device_id: str = Field(foreign_key="devices.id", primary_key=True)
+    sensor_id: str = Field(primary_key=True)  # e.g., "hwinfo:temp:cpu_package"
+    name: str  # Original name from HWiNFO
+    display_name: Optional[str] = None  # User-customized name
+    sensor_type: str  # temperature, voltage, fan, etc.
+    unit: str  # C, V, RPM, etc.
+    enabled: bool = Field(default=False)
+    source: str  # "hwinfo"

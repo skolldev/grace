@@ -15,6 +15,7 @@ import (
 	"github.com/grace/tarnished/internal/httpclient"
 	"github.com/grace/tarnished/internal/queue"
 	"github.com/grace/tarnished/internal/registration"
+	"github.com/grace/tarnished/internal/sensors"
 )
 
 const (
@@ -31,6 +32,7 @@ type Agent struct {
 	logger    *zap.Logger
 	stopCh    chan struct{}
 	doneCh    chan struct{}
+	sensors   *sensors.Manager
 
 	mu         sync.Mutex
 	running    bool
@@ -42,11 +44,17 @@ func New(cfg *config.Config, logger *zap.Logger) (*Agent, error) {
 	coll := collector.New(logger)
 	q := queue.New(MaxQueueSize)
 
+	var sensorMgr *sensors.Manager
+	if cfg.SensorsEnabled {
+		sensorMgr = sensors.NewManager(logger)
+	}
+
 	return &Agent{
 		config:    cfg,
 		client:    client,
 		collector: coll,
 		queue:     q,
+		sensors:   sensorMgr,
 		logger:    logger,
 		stopCh:    make(chan struct{}),
 		doneCh:    make(chan struct{}),
@@ -129,9 +137,16 @@ func (a *Agent) run() {
 	}
 
 	a.state = state
+
+	// Initialize sensors if enabled
+	if a.sensors != nil && a.sensors.Available() {
+		a.initSensors()
+	}
+
 	a.logger.Info("agent running",
 		zap.String("device_id", state.DeviceID),
-		zap.Duration("interval", a.config.Interval))
+		zap.Duration("interval", a.config.Interval),
+		zap.Bool("sensors_enabled", a.sensors != nil && a.sensors.Available()))
 
 	ticker := time.NewTicker(a.config.Interval)
 	defer ticker.Stop()
@@ -145,9 +160,68 @@ func (a *Agent) run() {
 			a.collectAndReport()
 		case <-a.stopCh:
 			a.logger.Info("agent stopped")
+			if a.sensors != nil {
+				a.sensors.Close()
+			}
 			return
 		}
 	}
+}
+
+// initSensors discovers sensors and reports them to the server
+func (a *Agent) initSensors() {
+	entries, err := a.sensors.DiscoverSensors()
+	if err != nil {
+		a.logger.Warn("failed to discover sensors", zap.Error(err))
+		return
+	}
+
+	if len(entries) == 0 {
+		a.logger.Info("no sensors discovered")
+		return
+	}
+
+	// Log discovered sensors
+	a.logger.Info("discovered sensors", zap.Int("count", len(entries)))
+	for _, e := range entries {
+		a.logger.Info("sensor",
+			zap.String("id", e.ID),
+			zap.String("name", e.Name),
+			zap.String("type", e.SensorType),
+			zap.String("unit", e.Unit),
+			zap.Float64("value", e.Value))
+	}
+
+	// Convert to API format and report
+	sensorInfos := make([]httpclient.SensorInfo, len(entries))
+	for i, e := range entries {
+		sensorInfos[i] = httpclient.SensorInfo{
+			SensorID:   e.ID,
+			Name:       e.Name,
+			SensorType: e.SensorType,
+			Unit:       e.Unit,
+			Source:     e.Source,
+		}
+	}
+
+	if err := a.client.ReportSensors(a.state.DeviceID, sensorInfos); err != nil {
+		a.logger.Warn("failed to report sensors to server", zap.Error(err))
+	} else {
+		a.logger.Info("reported sensors to server", zap.Int("count", len(entries)))
+	}
+
+	// Fetch initial config
+	a.refreshSensorConfig()
+}
+
+// refreshSensorConfig fetches the sensor config from the server
+func (a *Agent) refreshSensorConfig() {
+	enabled, err := a.client.GetSensorConfig(a.state.DeviceID)
+	if err != nil {
+		a.logger.Warn("failed to fetch sensor config", zap.Error(err))
+		return
+	}
+	a.sensors.UpdateConfig(enabled)
 }
 
 func (a *Agent) collectAndReport() {
@@ -170,11 +244,26 @@ func (a *Agent) collectAndReport() {
 	// First, try to drain any queued metrics
 	a.drainQueue()
 
+	// Check if sensor config needs refresh
+	if a.sensors != nil && a.sensors.Available() && a.sensors.ShouldRefreshConfig() {
+		a.refreshSensorConfig()
+	}
+
 	// Collect new metrics
 	metrics, err := a.collector.Collect()
 	if err != nil {
 		a.logger.Error("failed to collect metrics", zap.Error(err))
 		return
+	}
+
+	// Collect sensor data if enabled
+	if a.sensors != nil && a.sensors.Available() {
+		sensorData, err := a.sensors.CollectEnabled()
+		if err != nil {
+			a.logger.Warn("failed to collect sensor data", zap.Error(err))
+		} else if len(sensorData) > 0 {
+			metrics.Sensors = sensorData
+		}
 	}
 
 	timestamp := time.Now().UTC()

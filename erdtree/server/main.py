@@ -7,7 +7,7 @@ from fastapi.exceptions import HTTPException, RequestValidationError
 
 from server.core.database import create_db_and_tables
 from server.core.logger import log_error
-from server.api import devices, metrics, admin, logs
+from server.api import devices, metrics, admin, logs, sensors
 
 
 @asynccontextmanager
@@ -32,6 +32,7 @@ app.add_middleware(
 )
 
 app.include_router(devices.router, prefix="/api/devices", tags=["devices"])
+app.include_router(sensors.router, prefix="/api/devices", tags=["sensors"])
 app.include_router(metrics.router, prefix="/api/metrics", tags=["metrics"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(logs.router, prefix="/api/logs", tags=["logs"])

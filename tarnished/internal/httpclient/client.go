@@ -159,3 +159,75 @@ func (c *Client) PushMetricsWithRetry(deviceID string, timestamp time.Time, metr
 
 	return fmt.Errorf("push metrics failed after %d retries: %w", maxRetries, lastErr)
 }
+
+// SensorInfo represents a sensor to report to the server
+type SensorInfo struct {
+	SensorID   string `json:"sensor_id"`
+	Name       string `json:"name"`
+	SensorType string `json:"sensor_type"`
+	Unit       string `json:"unit"`
+	Source     string `json:"source"`
+}
+
+type ReportSensorsRequest struct {
+	Sensors []SensorInfo `json:"sensors"`
+}
+
+type ReportSensorsResponse struct {
+	Status string `json:"status"`
+	Count  int    `json:"count"`
+}
+
+type SensorConfigResponse struct {
+	Enabled []string `json:"enabled"`
+}
+
+// ReportSensors reports available sensors to the server
+func (c *Client) ReportSensors(deviceID string, sensors []SensorInfo) error {
+	req := ReportSensorsRequest{Sensors: sensors}
+
+	body, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("failed to marshal sensors request: %w", err)
+	}
+
+	resp, err := c.httpClient.Post(
+		fmt.Sprintf("%s/api/devices/%s/sensors", c.baseURL, deviceID),
+		"application/json",
+		bytes.NewReader(body),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to report sensors: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("report sensors failed (status %d): %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	return nil
+}
+
+// GetSensorConfig fetches the sensor configuration from the server
+func (c *Client) GetSensorConfig(deviceID string) ([]string, error) {
+	resp, err := c.httpClient.Get(
+		fmt.Sprintf("%s/api/devices/%s/sensors/config", c.baseURL, deviceID),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sensor config: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("get sensor config failed (status %d): %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var config SensorConfigResponse
+	if err := json.NewDecoder(resp.Body).Decode(&config); err != nil {
+		return nil, fmt.Errorf("failed to parse sensor config: %w", err)
+	}
+
+	return config.Enabled, nil
+}

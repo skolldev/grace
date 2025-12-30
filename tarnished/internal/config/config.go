@@ -16,10 +16,11 @@ const (
 )
 
 type Config struct {
-	Server   string        `mapstructure:"server"`
-	Token    string        `mapstructure:"token"`
-	Interval time.Duration `mapstructure:"interval"`
-	LogLevel string        `mapstructure:"log_level"`
+	Server         string        `mapstructure:"server"`
+	Token          string        `mapstructure:"token"`
+	Interval       time.Duration `mapstructure:"interval"`
+	LogLevel       string        `mapstructure:"log_level"`
+	SensorsEnabled bool          `mapstructure:"sensors_enabled"`
 }
 
 func DefaultConfigPath() string {
@@ -40,6 +41,7 @@ func Load(cfgFile string) (*Config, error) {
 	// Set defaults
 	viper.SetDefault("interval", DefaultInterval)
 	viper.SetDefault("log_level", "info")
+	viper.SetDefault("sensors_enabled", false)
 
 	// Bind environment variables
 	viper.SetEnvPrefix("GRACE")
@@ -47,6 +49,7 @@ func Load(cfgFile string) (*Config, error) {
 	viper.BindEnv("token", "GRACE_TOKEN")
 	viper.BindEnv("interval", "GRACE_INTERVAL")
 	viper.BindEnv("log_level", "GRACE_LOG_LEVEL")
+	viper.BindEnv("sensors_enabled", "GRACE_SENSORS_ENABLED")
 
 	// Try to read config file (optional)
 	if cfgFile != "" {
