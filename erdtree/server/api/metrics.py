@@ -16,11 +16,11 @@ def push_metrics(payload: MetricsPayload, session: Session = Depends(get_session
     device = session.get(Device, payload.device_id)
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
-    
+
     # Update last seen
     device.last_seen_at = datetime.utcnow()
     session.add(device)
-    
+
     # Store metrics
     metric = Metric(
         device_id=payload.device_id,
@@ -29,7 +29,7 @@ def push_metrics(payload: MetricsPayload, session: Session = Depends(get_session
     )
     session.add(metric)
     session.commit()
-    
+
     return MetricsResponse(status="ok")
 
 
@@ -45,18 +45,18 @@ def get_metrics(
     device = session.get(Device, device_id)
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
-    
+
     query = select(Metric).where(Metric.device_id == device_id)
-    
+
     if start:
         query = query.where(Metric.timestamp >= start)
     if end:
         query = query.where(Metric.timestamp <= end)
-    
+
     query = query.order_by(Metric.timestamp.desc()).limit(limit)
-    
+
     metrics = session.exec(query).all()
-    
+
     return [
         {
             "timestamp": m.timestamp.isoformat(),

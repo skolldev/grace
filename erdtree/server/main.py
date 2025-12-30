@@ -9,13 +9,19 @@ from server.core.database import create_db_and_tables
 from server.core.logger import log_error
 from server.api import devices, metrics, admin, logs
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     yield
 
 
-app = FastAPI(title="Erdtree API", version="0.1.0", description="Self-hosted system monitoring", lifespan=lifespan)
+app = FastAPI(
+    title="Erdtree API",
+    version="0.1.0",
+    description="Self-hosted system monitoring",
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,
