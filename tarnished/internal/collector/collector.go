@@ -13,7 +13,9 @@ import (
 	"go.uber.org/zap"
 )
 
-const CPUSampleInterval = time.Second
+// CPUSampleInterval is the duration for CPU sampling.
+// Can be overridden in tests for faster execution.
+var CPUSampleInterval = time.Second
 
 // virtualFSTypes contains filesystem types to exclude from disk metrics
 var virtualFSTypes = map[string]bool{

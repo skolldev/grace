@@ -23,6 +23,10 @@ const (
 	MaxBackoffDuration     = 30 * time.Second
 )
 
+// BaseBackoffDuration is the base duration for exponential backoff.
+// Can be overridden in tests for faster execution.
+var BaseBackoffDuration = time.Second
+
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
@@ -148,8 +152,8 @@ func (c *Client) PushMetricsWithRetry(deviceID string, timestamp time.Time, metr
 			zap.Int("max_retries", maxRetries),
 			zap.Error(err))
 
-		// Exponential backoff: 1s, 2s, 4s, 8s, 16s (capped at MaxBackoffDuration)
-		backoff := min(time.Duration(1<<attempt)*time.Second, MaxBackoffDuration)
+		// Exponential backoff: base*1, base*2, base*4, etc. (capped at MaxBackoffDuration)
+		backoff := min(time.Duration(1<<attempt)*BaseBackoffDuration, MaxBackoffDuration)
 		time.Sleep(backoff)
 	}
 
