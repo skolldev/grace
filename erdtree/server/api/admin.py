@@ -1,9 +1,9 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session, select
 
 from server.core.database import get_session
-from server.models.models import RegistrationToken
+from server.models.models import RegistrationToken, utc_now
 from server.models.schemas import TokenResponse
 
 router = APIRouter()
@@ -17,7 +17,7 @@ def create_token(
     session: Session = Depends(get_session),
 ):
     token = RegistrationToken(
-        expires_at=datetime.utcnow() + timedelta(hours=expires_in_hours)
+        expires_at=utc_now() + timedelta(hours=expires_in_hours)
     )
     session.add(token)
     session.commit()
@@ -35,7 +35,7 @@ def list_tokens(session: Session = Depends(get_session)):
             "created_at": t.created_at.isoformat(),
             "expires_at": t.expires_at.isoformat(),
             "used": t.used,
-            "expired": t.expires_at < datetime.utcnow(),
+            "expired": t.expires_at < utc_now(),
         }
         for t in tokens
     ]

@@ -1,10 +1,10 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 
 from server.core.database import get_session
-from server.models.models import Device, Metric
+from server.models.models import Device, Metric, utc_now
 from server.models.schemas import MetricsPayload, MetricsResponse
 
 router = APIRouter()
@@ -18,13 +18,13 @@ def push_metrics(payload: MetricsPayload, session: Session = Depends(get_session
         raise HTTPException(status_code=404, detail="Device not found")
 
     # Update last seen
-    device.last_seen_at = datetime.utcnow()
+    device.last_seen_at = utc_now()
     session.add(device)
 
     # Store metrics
     metric = Metric(
         device_id=payload.device_id,
-        timestamp=payload.timestamp or datetime.utcnow(),
+        timestamp=payload.timestamp or utc_now(),
         data=payload.metrics,
     )
     session.add(metric)

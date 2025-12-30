@@ -1,10 +1,9 @@
-from datetime import datetime
 from server.core.logger import log_info
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from server.core.database import get_session
-from server.models.models import Device, Metric, RegistrationToken
+from server.models.models import Device, Metric, RegistrationToken, utc_now
 from server.models.schemas import (
     RegisterRequest,
     RegisterResponse,
@@ -23,7 +22,7 @@ def register_device(request: RegisterRequest, session: Session = Depends(get_ses
         raise HTTPException(status_code=400, detail="Invalid token")
     if token.used:
         raise HTTPException(status_code=400, detail="Token already used")
-    if token.expires_at < datetime.utcnow():
+    if token.expires_at < utc_now():
         raise HTTPException(status_code=400, detail="Token expired")
 
     # Mark token as used
