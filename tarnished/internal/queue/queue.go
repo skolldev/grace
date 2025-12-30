@@ -3,6 +3,8 @@ package queue
 import (
 	"sync"
 	"time"
+
+	"github.com/grace/tarnished/internal/collector"
 )
 
 const DefaultMaxSize = 100
@@ -10,7 +12,7 @@ const DefaultMaxSize = 100
 type QueuedMetric struct {
 	DeviceID  string
 	Timestamp time.Time
-	Metrics   any
+	Metrics   *collector.Metrics
 }
 
 type MetricQueue struct {
@@ -57,13 +59,4 @@ func (q *MetricQueue) Len() int {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	return len(q.items)
-}
-
-func (q *MetricQueue) Drain() []QueuedMetric {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-
-	items := q.items
-	q.items = make([]QueuedMetric, 0, q.maxSize)
-	return items
 }

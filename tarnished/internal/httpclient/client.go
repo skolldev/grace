@@ -5,12 +5,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/grace/tarnished/internal/collector"
+)
+
+const (
+	DefaultTimeout         = 30 * time.Second
+	DefaultDialTimeout     = 10 * time.Second
+	DefaultKeepAlive       = 30 * time.Second
+	DefaultIdleConnTimeout = 90 * time.Second
+	DefaultMaxIdleConns    = 10
+	MaxBackoffDuration     = 30 * time.Second
 )
 
 type Client struct {
@@ -20,10 +30,22 @@ type Client struct {
 }
 
 func New(baseURL string, logger *zap.Logger) *Client {
+	transport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   DefaultDialTimeout,
+			KeepAlive: DefaultKeepAlive,
+		}).DialContext,
+		MaxIdleConns:        DefaultMaxIdleConns,
+		MaxIdleConnsPerHost: DefaultMaxIdleConns,
+		IdleConnTimeout:     DefaultIdleConnTimeout,
+		DisableCompression:  false,
+	}
+
 	return &Client{
 		baseURL: baseURL,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout:   DefaultTimeout,
+			Transport: transport,
 		},
 		logger: logger,
 	}
@@ -45,7 +67,7 @@ type RegisterResponse struct {
 func (c *Client) Register(req *RegisterRequest) (*RegisterResponse, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal registration request: %w", err)
 	}
 
 	resp, err := c.httpClient.Post(
@@ -54,18 +76,18 @@ func (c *Client) Register(req *RegisterRequest) (*RegisterResponse, error) {
 		bytes.NewReader(body),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to server: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("registration failed: %s - %s", resp.Status, string(bodyBytes))
+		return nil, fmt.Errorf("registration failed (status %d): %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	var result RegisterResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse registration response: %w", err)
 	}
 
 	return &result, nil
@@ -90,7 +112,7 @@ func (c *Client) PushMetrics(deviceID string, timestamp time.Time, metrics *coll
 
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal metrics payload: %w", err)
 	}
 
 	resp, err := c.httpClient.Post(
@@ -99,13 +121,13 @@ func (c *Client) PushMetrics(deviceID string, timestamp time.Time, metrics *coll
 		bytes.NewReader(body),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to connect to server: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("push metrics failed: %s - %s", resp.Status, string(bodyBytes))
+		return fmt.Errorf("push metrics failed (status %d): %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	return nil
@@ -123,10 +145,11 @@ func (c *Client) PushMetricsWithRetry(deviceID string, timestamp time.Time, metr
 		lastErr = err
 		c.logger.Warn("push metrics failed, retrying",
 			zap.Int("attempt", attempt+1),
+			zap.Int("max_retries", maxRetries),
 			zap.Error(err))
 
-		// Exponential backoff: 1s, 2s, 4s, 8s, 16s
-		backoff := min(time.Duration(1<<attempt)*time.Second, 30*time.Second)
+		// Exponential backoff: 1s, 2s, 4s, 8s, 16s (capped at MaxBackoffDuration)
+		backoff := min(time.Duration(1<<attempt)*time.Second, MaxBackoffDuration)
 		time.Sleep(backoff)
 	}
 

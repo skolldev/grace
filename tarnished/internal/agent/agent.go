@@ -3,6 +3,7 @@ package agent
 import (
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -16,7 +17,10 @@ import (
 	"github.com/grace/tarnished/internal/registration"
 )
 
-const maxRetries = 5
+const (
+	MaxRetries   = 5
+	MaxQueueSize = 100
+)
 
 type Agent struct {
 	config    *config.Config
@@ -27,12 +31,16 @@ type Agent struct {
 	logger    *zap.Logger
 	stopCh    chan struct{}
 	doneCh    chan struct{}
+
+	mu         sync.Mutex
+	running    bool
+	collecting bool
 }
 
 func New(cfg *config.Config, logger *zap.Logger) (*Agent, error) {
 	client := httpclient.New(cfg.Server, logger)
 	coll := collector.New(logger)
-	q := queue.New(100)
+	q := queue.New(MaxQueueSize)
 
 	return &Agent{
 		config:    cfg,
@@ -47,6 +55,16 @@ func New(cfg *config.Config, logger *zap.Logger) (*Agent, error) {
 
 // Start implements service.Interface
 func (a *Agent) Start(s service.Service) error {
+	a.mu.Lock()
+	if a.running {
+		a.mu.Unlock()
+		return nil
+	}
+	a.running = true
+	a.stopCh = make(chan struct{})
+	a.doneCh = make(chan struct{})
+	a.mu.Unlock()
+
 	a.logger.Info("starting agent")
 	go a.run()
 	return nil
@@ -54,6 +72,14 @@ func (a *Agent) Start(s service.Service) error {
 
 // Stop implements service.Interface
 func (a *Agent) Stop(s service.Service) error {
+	a.mu.Lock()
+	if !a.running {
+		a.mu.Unlock()
+		return nil
+	}
+	a.running = false
+	a.mu.Unlock()
+
 	a.logger.Info("stopping agent")
 	close(a.stopCh)
 	<-a.doneCh
@@ -125,6 +151,22 @@ func (a *Agent) run() {
 }
 
 func (a *Agent) collectAndReport() {
+	// Prevent overlapping collections
+	a.mu.Lock()
+	if a.collecting {
+		a.mu.Unlock()
+		a.logger.Debug("skipping collection, previous collection still running")
+		return
+	}
+	a.collecting = true
+	a.mu.Unlock()
+
+	defer func() {
+		a.mu.Lock()
+		a.collecting = false
+		a.mu.Unlock()
+	}()
+
 	// First, try to drain any queued metrics
 	a.drainQueue()
 
@@ -138,7 +180,7 @@ func (a *Agent) collectAndReport() {
 	timestamp := time.Now().UTC()
 
 	// Try to push with retry
-	err = a.client.PushMetricsWithRetry(a.state.DeviceID, timestamp, metrics, maxRetries)
+	err = a.client.PushMetricsWithRetry(a.state.DeviceID, timestamp, metrics, MaxRetries)
 	if err != nil {
 		a.logger.Warn("failed to push metrics, queueing", zap.Error(err))
 		a.queue.Push(queue.QueuedMetric{
@@ -166,13 +208,7 @@ func (a *Agent) drainQueue() {
 			break
 		}
 
-		metrics, ok := item.Metrics.(*collector.Metrics)
-		if !ok {
-			a.logger.Warn("invalid metric type in queue")
-			continue
-		}
-
-		err := a.client.PushMetrics(item.DeviceID, item.Timestamp, metrics)
+		err := a.client.PushMetrics(item.DeviceID, item.Timestamp, item.Metrics)
 		if err != nil {
 			// Re-queue on failure and stop draining
 			a.logger.Warn("failed to push queued metric, re-queueing", zap.Error(err))

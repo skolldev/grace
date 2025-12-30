@@ -2,10 +2,17 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"runtime"
 	"time"
 
 	"github.com/spf13/viper"
+)
+
+const (
+	MinInterval     = 1 * time.Second
+	MaxInterval     = 1 * time.Hour
+	DefaultInterval = 10 * time.Second
 )
 
 type Config struct {
@@ -31,7 +38,7 @@ func DefaultStatePath() string {
 
 func Load(cfgFile string) (*Config, error) {
 	// Set defaults
-	viper.SetDefault("interval", 10*time.Second)
+	viper.SetDefault("interval", DefaultInterval)
 	viper.SetDefault("log_level", "info")
 
 	// Bind environment variables
@@ -62,5 +69,34 @@ func Validate(cfg *Config) error {
 	if cfg.Server == "" {
 		return fmt.Errorf("server URL is required (--server or GRACE_SERVER)")
 	}
+
+	// Validate URL format
+	parsedURL, err := url.Parse(cfg.Server)
+	if err != nil {
+		return fmt.Errorf("invalid server URL: %w", err)
+	}
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return fmt.Errorf("server URL must use http or https scheme, got: %s", parsedURL.Scheme)
+	}
+	if parsedURL.Host == "" {
+		return fmt.Errorf("server URL must include a host")
+	}
+
+	// Validate interval bounds
+	if cfg.Interval < MinInterval {
+		return fmt.Errorf("interval must be at least %v, got: %v", MinInterval, cfg.Interval)
+	}
+	if cfg.Interval > MaxInterval {
+		return fmt.Errorf("interval must be at most %v, got: %v", MaxInterval, cfg.Interval)
+	}
+
+	// Validate log level
+	validLogLevels := map[string]bool{
+		"debug": true, "info": true, "warn": true, "error": true,
+	}
+	if cfg.LogLevel != "" && !validLogLevels[cfg.LogLevel] {
+		return fmt.Errorf("invalid log level: %s (must be debug, info, warn, or error)", cfg.LogLevel)
+	}
+
 	return nil
 }

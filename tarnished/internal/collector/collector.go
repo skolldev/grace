@@ -2,6 +2,7 @@ package collector
 
 import (
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/shirou/gopsutil/v3/cpu"
@@ -11,6 +12,32 @@ import (
 	"github.com/shirou/gopsutil/v3/net"
 	"go.uber.org/zap"
 )
+
+const CPUSampleInterval = time.Second
+
+// virtualFSTypes contains filesystem types to exclude from disk metrics
+var virtualFSTypes = map[string]bool{
+	"tmpfs":      true,
+	"devtmpfs":   true,
+	"proc":       true,
+	"sysfs":      true,
+	"devfs":      true,
+	"debugfs":    true,
+	"securityfs": true,
+	"cgroup":     true,
+	"cgroup2":    true,
+	"pstore":     true,
+	"bpf":        true,
+	"tracefs":    true,
+	"hugetlbfs":  true,
+	"mqueue":     true,
+	"fusectl":    true,
+	"configfs":   true,
+	"efivarfs":   true,
+	"autofs":     true,
+	"overlay":    true,
+	"squashfs":   true,
+}
 
 type Metrics struct {
 	CPU           CPUMetrics     `json:"cpu"`
@@ -55,7 +82,7 @@ func (c *Collector) Collect() (*Metrics, error) {
 	m := &Metrics{}
 
 	// CPU - use a short interval for sampling
-	cpuPercent, err := cpu.Percent(time.Second, false)
+	cpuPercent, err := cpu.Percent(CPUSampleInterval, false)
 	if err != nil {
 		c.logger.Warn("failed to collect CPU metrics", zap.Error(err))
 	} else if len(cpuPercent) > 0 {
@@ -73,12 +100,17 @@ func (c *Collector) Collect() (*Metrics, error) {
 		m.RAM.Percent = vmem.UsedPercent
 	}
 
-	// Disk
+	// Disk - filter out virtual filesystems
 	partitions, err := disk.Partitions(false)
 	if err != nil {
 		c.logger.Warn("failed to get disk partitions", zap.Error(err))
 	} else {
 		for _, p := range partitions {
+			// Skip virtual filesystems
+			if isVirtualFS(p.Fstype, p.Mountpoint) {
+				continue
+			}
+
 			usage, err := disk.Usage(p.Mountpoint)
 			if err != nil {
 				c.logger.Debug("failed to get disk usage", zap.String("mount", p.Mountpoint), zap.Error(err))
@@ -111,4 +143,22 @@ func (c *Collector) Collect() (*Metrics, error) {
 	}
 
 	return m, nil
+}
+
+// isVirtualFS checks if the filesystem should be excluded from disk metrics
+func isVirtualFS(fstype, mountpoint string) bool {
+	// Check filesystem type
+	if virtualFSTypes[strings.ToLower(fstype)] {
+		return true
+	}
+
+	// Exclude common virtual mount points
+	excludePrefixes := []string{"/proc", "/sys", "/dev", "/run", "/snap"}
+	for _, prefix := range excludePrefixes {
+		if strings.HasPrefix(mountpoint, prefix) {
+			return true
+		}
+	}
+
+	return false
 }

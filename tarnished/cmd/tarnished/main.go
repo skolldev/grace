@@ -24,6 +24,8 @@ var (
 )
 
 func main() {
+	defer flushLogger()
+
 	rootCmd := &cobra.Command{
 		Use:   "tarnished",
 		Short: "System monitoring agent for Grace",
@@ -82,6 +84,12 @@ func initLogger() error {
 		return err
 	}
 	return nil
+}
+
+func flushLogger() {
+	if logger != nil {
+		_ = logger.Sync()
+	}
 }
 
 func serviceName() string {
@@ -170,15 +178,19 @@ func installCmd() *cobra.Command {
 	}
 }
 
+// serviceStub implements service.Interface for control operations
+// that don't need a fully configured agent
+type serviceStub struct{}
+
+func (s *serviceStub) Start(svc service.Service) error { return nil }
+func (s *serviceStub) Stop(svc service.Service) error  { return nil }
+
 func uninstallCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "uninstall",
 		Short: "Remove system service",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, _ := config.Load(cfgFile)
-			ag, _ := agent.New(cfg, logger)
-
-			s, err := service.New(ag, getServiceConfig())
+			s, err := service.New(&serviceStub{}, getServiceConfig())
 			if err != nil {
 				return err
 			}
@@ -199,10 +211,7 @@ func startCmd() *cobra.Command {
 		Use:   "start",
 		Short: "Start the service",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, _ := config.Load(cfgFile)
-			ag, _ := agent.New(cfg, logger)
-
-			s, err := service.New(ag, getServiceConfig())
+			s, err := service.New(&serviceStub{}, getServiceConfig())
 			if err != nil {
 				return err
 			}
@@ -223,10 +232,7 @@ func stopCmd() *cobra.Command {
 		Use:   "stop",
 		Short: "Stop the service",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, _ := config.Load(cfgFile)
-			ag, _ := agent.New(cfg, logger)
-
-			s, err := service.New(ag, getServiceConfig())
+			s, err := service.New(&serviceStub{}, getServiceConfig())
 			if err != nil {
 				return err
 			}
@@ -247,10 +253,7 @@ func statusCmd() *cobra.Command {
 		Use:   "status",
 		Short: "Show service status",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, _ := config.Load(cfgFile)
-			ag, _ := agent.New(cfg, logger)
-
-			s, err := service.New(ag, getServiceConfig())
+			s, err := service.New(&serviceStub{}, getServiceConfig())
 			if err != nil {
 				return err
 			}

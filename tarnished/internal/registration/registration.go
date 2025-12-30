@@ -39,9 +39,9 @@ func LoadState() (*State, error) {
 func SaveState(state *State) error {
 	path := config.DefaultStatePath()
 
-	// Ensure directory exists
+	// Ensure directory exists with restrictive permissions (owner-only)
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("failed to create state directory: %w", err)
 	}
 
@@ -54,7 +54,10 @@ func SaveState(state *State) error {
 }
 
 func Register(client *httpclient.Client, token string) (*State, error) {
-	hostname, _ := os.Hostname()
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "unknown"
+	}
 	ipAddr := getOutboundIP()
 
 	req := &httpclient.RegisterRequest{
@@ -89,6 +92,9 @@ func getOutboundIP() string {
 	}
 	defer conn.Close()
 
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	localAddr, ok := conn.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		return ""
+	}
 	return localAddr.IP.String()
 }
