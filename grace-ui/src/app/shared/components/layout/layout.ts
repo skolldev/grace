@@ -19,6 +19,11 @@ export class Layout {
       icon: 'pi pi-home',
       routerLink: '/',
     },
+    {
+      label: 'Logs',
+      icon: 'pi pi-list',
+      routerLink: '/logs',
+    },
   ];
 
   systems = [

@@ -1,0 +1,42 @@
+<div class="flex flex-col gap-8 flex-1 overflow-hidden rounded-lg bg-content-900 border-content-700 border p-4 ">
+  <h2 class="text-2xl font-bold">System Logs</h2>
+  <div class="flex-1 flex flex-col overflow-hidden">
+  <p-table
+    [value]="logs()"
+    [loading]="loading()"
+    scrollHeight="flex"
+    [scrollable]="true"
+    [paginator]="true"
+    [rows]="25"
+    [rowsPerPageOptions]="[10, 25, 50, 100]"
+    [tableStyle]="{ 'min-width': '50rem' }"
+    sortField="timestamp"
+    [sortOrder]="-1"
+  >
+    <ng-template pTemplate="header">
+      <tr>
+        <th pSortableColumn="timestamp" class="w-48">
+          Timestamp <p-sortIcon field="timestamp" />
+        </th>
+        <th pSortableColumn="type" class="w-40">Type <p-sortIcon field="type" /></th>
+        <th pSortableColumn="source" class="w-40">Source <p-sortIcon field="source" /></th>
+        <th pSortableColumn="content">Content <p-sortIcon field="content" /></th>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="body" let-log>
+      <tr>
+        <td>{{ log.timestamp | date: 'short' }}</td>
+        <td>
+          <p-tag [value]="log.type" [severity]="getSeverity(log.type)" />
+        </td>
+        <td>{{ log.source }}</td>
+        <td>{{ log.content }}</td>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="4" class="text-center">No logs found.</td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>

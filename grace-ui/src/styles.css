@@ -3,3 +3,19 @@
 @import "tailwindcss";
 @import "primeicons/primeicons.css";
 
+@theme {
+  --color-gold-500: #ba9638;
+  --color-amber-500: #e8b923;
+  --color-slate-500: #1;
+  --color-green-500: #7cb342;
+  --color-red-500: #c75b5b;
+  --color-content-900: var(--p-surface-900);
+  --color-content-700: var(--p-surface-700);
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  margin: 0;
+}

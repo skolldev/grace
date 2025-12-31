@@ -9,17 +9,17 @@ import { DeviceSensor, ReportSensorsRequest, ReportSensorsResponse, SensorConfig
 })
 export class SensorsService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = environment.apiUrl;
+  private readonly baseUrl = `${environment.apiUrl}/devices`;
 
   reportSensors(deviceId: string, request: ReportSensorsRequest): Observable<ReportSensorsResponse> {
     return this.http.post<ReportSensorsResponse>(
-      `${this.baseUrl}/devices/${deviceId}/sensors`,
+      `${this.baseUrl}/${deviceId}/sensors`,
       request
     );
   }
 
   getDeviceSensors(deviceId: string): Observable<DeviceSensor[]> {
-    return this.http.get<DeviceSensor[]>(`${this.baseUrl}/devices/${deviceId}/sensors`);
+    return this.http.get<DeviceSensor[]>(`${this.baseUrl}/${deviceId}/sensors`);
   }
 
   updateSensorConfig(
@@ -27,14 +27,14 @@ export class SensorsService {
     request: UpdateSensorConfigRequest
   ): Observable<SensorConfigResponse> {
     return this.http.put<SensorConfigResponse>(
-      `${this.baseUrl}/devices/${deviceId}/sensors/config`,
+      `${this.baseUrl}/${deviceId}/sensors/config`,
       request
     );
   }
 
   getSensorConfig(deviceId: string): Observable<SensorConfigResponse> {
     return this.http.get<SensorConfigResponse>(
-      `${this.baseUrl}/devices/${deviceId}/sensors/config`
+      `${this.baseUrl}${deviceId}/sensors/config`
     );
   }
 }
