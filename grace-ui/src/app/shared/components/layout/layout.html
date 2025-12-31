@@ -1,0 +1,28 @@
+<div class="p-4">
+    <p-menubar [model]="items" >
+        <ng-template pTemplate="item" let-item>
+            <a [routerLink]="item.routerLink">
+                <i [class]="item.icon"></i>
+                <span>{{ item.label }}</span>
+            </a>
+        </ng-template>
+        <ng-template pTemplate="end">
+            <p-button label="Add system" icon="pi pi-plus" (onClick)="addSystem()" />
+        </ng-template>
+    </p-menubar>
+    <ng-content />
+    <p-dialog [(visible)]="addSystemDialogVisible" [dismissableMask]="true" [closeOnEscape]="true" header="Add System" [modal]="true" contentStyleClass="flex flex-col gap-4">
+        <p class="w-96">
+            Choose your system to get the command for installing the agent.
+            After the agent is installed on the system, it will automatically register itself with the server.
+        </p>
+        <p-splitbutton
+            class="self-end"
+            [model]="systems"
+            (onClick)="getLinuxCommand()"
+            label="Linux" icon="pi pi-linux"
+        >
+        </p-splitbutton>
+    </p-dialog>
+    
+</div>

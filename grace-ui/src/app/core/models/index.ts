@@ -1,23 +1,21 @@
 export type {
-  TokenResponse,
-  RegistrationToken,
+  RegistrationToken, TokenResponse
 } from './admin.models';
 
 export type {
   Device,
   DeviceWithMetrics,
   RegisterRequest,
-  RegisterResponse,
+  RegisterResponse
 } from './device.models';
 
-export type { HealthResponse } from './health.models';
 
 export type { Log } from './log.models';
 
 export type {
   Metric,
   MetricsPayload,
-  MetricsResponse,
+  MetricsResponse
 } from './metric.models';
 
 export type {
@@ -26,5 +24,6 @@ export type {
   ReportSensorsResponse,
   SensorConfigResponse,
   SensorInfo,
-  UpdateSensorConfigRequest,
+  UpdateSensorConfigRequest
 } from './sensor.models';
+

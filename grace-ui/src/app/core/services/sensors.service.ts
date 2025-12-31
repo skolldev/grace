@@ -1,14 +1,8 @@
-import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import {
-  DeviceSensor,
-  ReportSensorsRequest,
-  ReportSensorsResponse,
-  SensorConfigResponse,
-  UpdateSensorConfigRequest,
-} from '../models/api.models';
+import { DeviceSensor, ReportSensorsRequest, ReportSensorsResponse, SensorConfigResponse, UpdateSensorConfigRequest } from '../models';
 
 @Injectable({
   providedIn: 'root',

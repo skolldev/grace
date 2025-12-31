@@ -4,13 +4,13 @@ on:
   push:
     branches: [main]
     paths:
-      - 'tarnished/**'
-      - '.github/workflows/tarnished-ci.yml'
+      - "tarnished/**"
+      - ".github/workflows/tarnished-ci.yml"
   pull_request:
     branches: [main]
     paths:
-      - 'tarnished/**'
-      - '.github/workflows/tarnished-ci.yml'
+      - "tarnished/**"
+      - ".github/workflows/tarnished-ci.yml"
 
 defaults:
   run:
@@ -29,7 +29,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: "1.22"
 
       - name: Download dependencies
         run: go mod download
@@ -61,7 +61,6 @@ jobs:
           files: ./tarnished/junit.xml
           flags: tarnished
           report_type: test_results
-          verbose: true
 
   lint:
     runs-on: ubuntu-latest
@@ -72,7 +71,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: "1.22"
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v4
@@ -90,7 +89,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: "1.22"
 
       - name: Build
         run: make build

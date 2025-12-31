@@ -11,7 +11,16 @@
       "Bash(.venv/Scripts/ruff format --check server/ tests/)",
       "Bash(.venv/Scripts/ruff format server/ tests/)",
       "Bash(go vet:*)",
-      "Bash(go tool cover:*)"
+      "Bash(go tool cover:*)",
+      "Bash(gotestsum:*)",
+      "Bash(go install:*)",
+      "mcp__primeng__get_theming_guide",
+      "mcp__primeng__get_guide",
+      "mcp__ide__getDiagnostics",
+      "mcp__primeng__get_component_tokens",
+      "mcp__primeng__search_components",
+      "mcp__primeng__find_by_prop",
+      "mcp__primeng__search_all"
     ]
   }
 }
