@@ -3,19 +3,19 @@ from fastapi.testclient import TestClient
 
 
 @pytest.fixture
-def device_id(client: TestClient) -> str:
-    token_response = client.post("/api/admin/tokens")
-    token = token_response.json()["token"]
+def device_id(client: TestClient, auth_headers: dict) -> str:
     reg_response = client.post(
         "/api/devices/register",
-        json={"token": token, "hostname": "test-host", "os": "linux", "arch": "amd64"},
+        headers=auth_headers,
+        json={"hostname": "test-host", "os": "linux", "arch": "amd64"},
     )
     return reg_response.json()["device_id"]
 
 
-def test_push_metrics(client: TestClient, device_id: str):
+def test_push_metrics(client: TestClient, device_id: str, auth_headers: dict):
     response = client.post(
         "/api/metrics",
+        headers=auth_headers,
         json={
             "device_id": device_id,
             "metrics": {"cpu": 45.2, "memory": 78.5, "disk": 60.0},
@@ -25,9 +25,22 @@ def test_push_metrics(client: TestClient, device_id: str):
     assert response.json()["status"] == "ok"
 
 
-def test_push_metrics_device_not_found(client: TestClient):
+def test_push_metrics_no_auth(client: TestClient, device_id: str):
+    """Test that pushing metrics without API key fails."""
     response = client.post(
         "/api/metrics",
+        json={
+            "device_id": device_id,
+            "metrics": {"cpu": 45.2},
+        },
+    )
+    assert response.status_code == 401
+
+
+def test_push_metrics_device_not_found(client: TestClient, auth_headers: dict):
+    response = client.post(
+        "/api/metrics",
+        headers=auth_headers,
         json={
             "device_id": "nonexistent-id",
             "metrics": {"cpu": 45.2},
@@ -37,14 +50,16 @@ def test_push_metrics_device_not_found(client: TestClient):
     assert response.json()["detail"] == "Device not found"
 
 
-def test_get_metrics(client: TestClient, device_id: str):
+def test_get_metrics(client: TestClient, device_id: str, auth_headers: dict):
     # Push some metrics
     client.post(
         "/api/metrics",
+        headers=auth_headers,
         json={"device_id": device_id, "metrics": {"cpu": 10.0}},
     )
     client.post(
         "/api/metrics",
+        headers=auth_headers,
         json={"device_id": device_id, "metrics": {"cpu": 20.0}},
     )
 
@@ -65,10 +80,11 @@ def test_get_metrics_device_not_found(client: TestClient):
     assert response.status_code == 404
 
 
-def test_get_metrics_with_limit(client: TestClient, device_id: str):
+def test_get_metrics_with_limit(client: TestClient, device_id: str, auth_headers: dict):
     for i in range(5):
         client.post(
             "/api/metrics",
+            headers=auth_headers,
             json={"device_id": device_id, "metrics": {"cpu": i}},
         )
 

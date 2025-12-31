@@ -26,7 +26,9 @@ func testLogger() *zap.Logger {
 
 func TestClient_Register_Success(t *testing.T) {
 	expectedDeviceID := "device-123"
+	testAPIKey := "grc_test-api-key"
 	var receivedReq RegisterRequest
+	var receivedAuthHeader string
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/devices/register" {
@@ -38,6 +40,7 @@ func TestClient_Register_Success(t *testing.T) {
 		if r.Header.Get("Content-Type") != "application/json" {
 			t.Errorf("unexpected content-type: %s", r.Header.Get("Content-Type"))
 		}
+		receivedAuthHeader = r.Header.Get("Authorization")
 
 		body, _ := io.ReadAll(r.Body)
 		json.Unmarshal(body, &receivedReq)
@@ -51,9 +54,8 @@ func TestClient_Register_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := New(server.URL, testLogger())
+	client := New(server.URL, testAPIKey, testLogger())
 	req := &RegisterRequest{
-		Token:     "test-token",
 		Hostname:  "test-host",
 		OS:        "linux",
 		Arch:      "amd64",
@@ -69,10 +71,13 @@ func TestClient_Register_Success(t *testing.T) {
 		t.Errorf("DeviceID = %s, want %s", resp.DeviceID, expectedDeviceID)
 	}
 
-	// Verify request was sent correctly
-	if receivedReq.Token != req.Token {
-		t.Errorf("Token = %s, want %s", receivedReq.Token, req.Token)
+	// Verify Authorization header was sent
+	expectedAuth := "Bearer " + testAPIKey
+	if receivedAuthHeader != expectedAuth {
+		t.Errorf("Authorization = %s, want %s", receivedAuthHeader, expectedAuth)
 	}
+
+	// Verify request was sent correctly
 	if receivedReq.Hostname != req.Hostname {
 		t.Errorf("Hostname = %s, want %s", receivedReq.Hostname, req.Hostname)
 	}
@@ -85,32 +90,32 @@ func TestClient_Register_ServerError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := New(server.URL, testLogger())
-	_, err := client.Register(&RegisterRequest{Token: "token"})
+	client := New(server.URL, "grc_test-key", testLogger())
+	_, err := client.Register(&RegisterRequest{Hostname: "test"})
 
 	if err == nil {
 		t.Error("expected error for server error response")
 	}
 }
 
-func TestClient_Register_InvalidToken(t *testing.T) {
+func TestClient_Register_InvalidAPIKey(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte("invalid token"))
+		w.Write([]byte("invalid API key"))
 	}))
 	defer server.Close()
 
-	client := New(server.URL, testLogger())
-	_, err := client.Register(&RegisterRequest{Token: "bad-token"})
+	client := New(server.URL, "bad-key", testLogger())
+	_, err := client.Register(&RegisterRequest{Hostname: "test"})
 
 	if err == nil {
-		t.Error("expected error for invalid token")
+		t.Error("expected error for invalid API key")
 	}
 }
 
 func TestClient_Register_ConnectionFailure(t *testing.T) {
-	client := New("http://localhost:99999", testLogger())
-	_, err := client.Register(&RegisterRequest{Token: "token"})
+	client := New("http://localhost:99999", "grc_test-key", testLogger())
+	_, err := client.Register(&RegisterRequest{Hostname: "test"})
 
 	if err == nil {
 		t.Error("expected error for connection failure")
@@ -136,7 +141,7 @@ func TestClient_PushMetrics_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := New(server.URL, testLogger())
+	client := New(server.URL, "grc_test-key", testLogger())
 	deviceID := "device-123"
 	timestamp := time.Now().UTC()
 	metrics := &collector.Metrics{
@@ -164,7 +169,7 @@ func TestClient_PushMetrics_ServerError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := New(server.URL, testLogger())
+	client := New(server.URL, "grc_test-key", testLogger())
 	err := client.PushMetrics("device-1", time.Now(), &collector.Metrics{})
 
 	if err == nil {
@@ -181,7 +186,7 @@ func TestClient_PushMetricsWithRetry_SuccessFirstTry(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := New(server.URL, testLogger())
+	client := New(server.URL, "grc_test-key", testLogger())
 	err := client.PushMetricsWithRetry("device-1", time.Now(), &collector.Metrics{}, 5)
 
 	if err != nil {
@@ -206,7 +211,7 @@ func TestClient_PushMetricsWithRetry_SuccessAfterRetries(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := New(server.URL, testLogger())
+	client := New(server.URL, "grc_test-key", testLogger())
 	err := client.PushMetricsWithRetry("device-1", time.Now(), &collector.Metrics{}, 5)
 
 	if err != nil {
@@ -227,7 +232,7 @@ func TestClient_PushMetricsWithRetry_FailsAfterMaxRetries(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := New(server.URL, testLogger())
+	client := New(server.URL, "grc_test-key", testLogger())
 	err := client.PushMetricsWithRetry("device-1", time.Now(), &collector.Metrics{}, maxRetries)
 
 	if err == nil {
@@ -239,10 +244,13 @@ func TestClient_PushMetricsWithRetry_FailsAfterMaxRetries(t *testing.T) {
 }
 
 func TestClient_New(t *testing.T) {
-	client := New("http://example.com", testLogger())
+	client := New("http://example.com", "grc_test-key", testLogger())
 
 	if client.baseURL != "http://example.com" {
 		t.Errorf("baseURL = %s, want http://example.com", client.baseURL)
+	}
+	if client.apiKey != "grc_test-key" {
+		t.Errorf("apiKey = %s, want grc_test-key", client.apiKey)
 	}
 	if client.httpClient == nil {
 		t.Error("httpClient should not be nil")
@@ -269,7 +277,7 @@ func TestClient_PushMetricsWithRetry_BackoffTiming(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := New(server.URL, testLogger())
+	client := New(server.URL, "grc_test-key", testLogger())
 	start := time.Now()
 	_ = client.PushMetricsWithRetry("device-1", time.Now(), &collector.Metrics{}, 4)
 	totalDuration := time.Since(start)

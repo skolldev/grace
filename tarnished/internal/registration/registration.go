@@ -53,7 +53,7 @@ func SaveState(state *State) error {
 	return os.WriteFile(path, data, 0600)
 }
 
-func Register(client *httpclient.Client, token string) (*State, error) {
+func Register(client *httpclient.Client) (*State, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = "unknown"
@@ -61,7 +61,6 @@ func Register(client *httpclient.Client, token string) (*State, error) {
 	ipAddr := getOutboundIP()
 
 	req := &httpclient.RegisterRequest{
-		Token:     token,
 		Hostname:  hostname,
 		OS:        runtime.GOOS,
 		Arch:      runtime.GOARCH,

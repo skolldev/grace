@@ -29,11 +29,12 @@ var BaseBackoffDuration = time.Second
 
 type Client struct {
 	baseURL    string
+	apiKey     string
 	httpClient *http.Client
 	logger     *zap.Logger
 }
 
-func New(baseURL string, logger *zap.Logger) *Client {
+func New(baseURL string, apiKey string, logger *zap.Logger) *Client {
 	transport := &http.Transport{
 		DialContext: (&net.Dialer{
 			Timeout:   DefaultDialTimeout,
@@ -47,6 +48,7 @@ func New(baseURL string, logger *zap.Logger) *Client {
 
 	return &Client{
 		baseURL: baseURL,
+		apiKey:  apiKey,
 		httpClient: &http.Client{
 			Timeout:   DefaultTimeout,
 			Transport: transport,
@@ -55,8 +57,15 @@ func New(baseURL string, logger *zap.Logger) *Client {
 	}
 }
 
+// doRequest executes an HTTP request with the API key authorization header.
+func (c *Client) doRequest(req *http.Request) (*http.Response, error) {
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
+	return c.httpClient.Do(req)
+}
+
 type RegisterRequest struct {
-	Token     string `json:"token"`
 	Hostname  string `json:"hostname"`
 	OS        string `json:"os"`
 	Arch      string `json:"arch"`
@@ -74,11 +83,17 @@ func (c *Client) Register(req *RegisterRequest) (*RegisterResponse, error) {
 		return nil, fmt.Errorf("failed to marshal registration request: %w", err)
 	}
 
-	resp, err := c.httpClient.Post(
+	httpReq, err := http.NewRequest(
+		"POST",
 		c.baseURL+"/api/devices/register",
-		"application/json",
 		bytes.NewReader(body),
 	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.doRequest(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to server: %w", err)
 	}
@@ -119,11 +134,17 @@ func (c *Client) PushMetrics(deviceID string, timestamp time.Time, metrics *coll
 		return fmt.Errorf("failed to marshal metrics payload: %w", err)
 	}
 
-	resp, err := c.httpClient.Post(
+	httpReq, err := http.NewRequest(
+		"POST",
 		c.baseURL+"/api/metrics",
-		"application/json",
 		bytes.NewReader(body),
 	)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.doRequest(httpReq)
 	if err != nil {
 		return fmt.Errorf("failed to connect to server: %w", err)
 	}
@@ -191,11 +212,17 @@ func (c *Client) ReportSensors(deviceID string, sensors []SensorInfo) error {
 		return fmt.Errorf("failed to marshal sensors request: %w", err)
 	}
 
-	resp, err := c.httpClient.Post(
+	httpReq, err := http.NewRequest(
+		"POST",
 		fmt.Sprintf("%s/api/devices/%s/sensors", c.baseURL, deviceID),
-		"application/json",
 		bytes.NewReader(body),
 	)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.doRequest(httpReq)
 	if err != nil {
 		return fmt.Errorf("failed to report sensors: %w", err)
 	}
@@ -211,9 +238,16 @@ func (c *Client) ReportSensors(deviceID string, sensors []SensorInfo) error {
 
 // GetSensorConfig fetches the sensor configuration from the server
 func (c *Client) GetSensorConfig(deviceID string) ([]string, error) {
-	resp, err := c.httpClient.Get(
+	httpReq, err := http.NewRequest(
+		"GET",
 		fmt.Sprintf("%s/api/devices/%s/sensors/config", c.baseURL, deviceID),
+		nil,
 	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.doRequest(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sensor config: %w", err)
 	}

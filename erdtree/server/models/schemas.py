@@ -5,7 +5,6 @@ from pydantic import BaseModel
 
 # Registration
 class RegisterRequest(BaseModel):
-    token: str
     hostname: str
     os: str
     arch: str
@@ -44,9 +43,8 @@ class DeviceWithMetrics(DeviceResponse):
 
 
 # Admin
-class TokenResponse(BaseModel):
-    token: str
-    expires_at: datetime
+class ApiKeyResponse(BaseModel):
+    api_key: str
 
 
 # Sensors

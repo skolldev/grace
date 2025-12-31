@@ -2,8 +2,9 @@ from server.core.logger import log_info
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
+from server.core.auth import verify_api_key
 from server.core.database import get_session
-from server.models.models import Device, DeviceSensor, Metric, RegistrationToken, utc_now
+from server.models.models import Device, DeviceSensor, Metric
 from server.models.schemas import (
     RegisterRequest,
     RegisterResponse,
@@ -15,21 +16,11 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=RegisterResponse)
-def register_device(request: RegisterRequest, session: Session = Depends(get_session)):
-    # Validate token
-    token = session.get(RegistrationToken, request.token)
-    if not token:
-        raise HTTPException(status_code=400, detail="Invalid token")
-    if token.used:
-        raise HTTPException(status_code=400, detail="Token already used")
-    if token.expires_at < utc_now():
-        raise HTTPException(status_code=400, detail="Token expired")
-
-    # Mark token as used
-    token.used = True
-    session.add(token)
-
-    # Create device
+def register_device(
+    request: RegisterRequest,
+    session: Session = Depends(get_session),
+    _: None = Depends(verify_api_key),
+):
     device = Device(
         hostname=request.hostname,
         os=request.os,

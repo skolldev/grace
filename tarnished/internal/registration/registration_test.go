@@ -149,7 +149,7 @@ func TestRegister_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := httpclient.New(server.URL, testLogger())
+	client := httpclient.New(server.URL, "grc_test-api-key", testLogger())
 
 	// Use a custom save function to avoid writing to system paths
 	tmpDir := t.TempDir()
@@ -159,7 +159,7 @@ func TestRegister_Success(t *testing.T) {
 	}
 	defer func() { saveStateFunc = originalSaveState }()
 
-	state, err := Register(client, "test-token")
+	state, err := Register(client)
 	if err != nil {
 		t.Fatalf("Register failed: %v", err)
 	}
@@ -179,26 +179,26 @@ func TestRegister_ServerError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := httpclient.New(server.URL, testLogger())
-	_, err := Register(client, "test-token")
+	client := httpclient.New(server.URL, "grc_test-api-key", testLogger())
+	_, err := Register(client)
 
 	if err == nil {
 		t.Error("expected error for server error")
 	}
 }
 
-func TestRegister_InvalidToken(t *testing.T) {
+func TestRegister_Unauthorized(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte("invalid token"))
+		w.Write([]byte("invalid api key"))
 	}))
 	defer server.Close()
 
-	client := httpclient.New(server.URL, testLogger())
-	_, err := Register(client, "bad-token")
+	client := httpclient.New(server.URL, "bad-api-key", testLogger())
+	_, err := Register(client)
 
 	if err == nil {
-		t.Error("expected error for invalid token")
+		t.Error("expected error for invalid api key")
 	}
 }
 

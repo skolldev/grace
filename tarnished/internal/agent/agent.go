@@ -40,7 +40,7 @@ type Agent struct {
 }
 
 func New(cfg *config.Config, logger *zap.Logger) (*Agent, error) {
-	client := httpclient.New(cfg.Server, logger)
+	client := httpclient.New(cfg.Server, cfg.APIKey, logger)
 	coll := collector.New(logger)
 	q := queue.New(MaxQueueSize)
 
@@ -122,13 +122,8 @@ func (a *Agent) run() {
 
 	if state == nil {
 		// First run - need to register
-		if a.config.Token == "" {
-			a.logger.Error("no device_id found and no token provided - cannot register")
-			return
-		}
-
 		a.logger.Info("registering device")
-		state, err = registration.Register(a.client, a.config.Token)
+		state, err = registration.Register(a.client)
 		if err != nil {
 			a.logger.Error("registration failed", zap.Error(err))
 			return

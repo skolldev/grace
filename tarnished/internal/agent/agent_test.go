@@ -33,13 +33,14 @@ func createTestAgent(t *testing.T, serverURL string, interval time.Duration) *Ag
 	logger := testLogger()
 	cfg := &config.Config{
 		Server:   serverURL,
+		APIKey:   "grc_test-api-key",
 		Interval: interval,
 		LogLevel: "debug",
 	}
 
 	return &Agent{
 		config:    cfg,
-		client:    httpclient.New(serverURL, logger),
+		client:    httpclient.New(serverURL, cfg.APIKey, logger),
 		collector: collector.New(logger),
 		queue:     queue.New(MaxQueueSize),
 		state: &registration.State{

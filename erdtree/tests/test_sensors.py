@@ -3,21 +3,20 @@ from fastapi.testclient import TestClient
 
 
 @pytest.fixture
-def registered_device(client: TestClient) -> str:
+def registered_device(client: TestClient, auth_headers: dict) -> str:
     """Create a registered device and return its ID."""
-    token_response = client.post("/api/admin/tokens")
-    token = token_response.json()["token"]
-
     reg_response = client.post(
         "/api/devices/register",
-        json={"token": token, "hostname": "test-host", "os": "windows", "arch": "amd64"},
+        headers=auth_headers,
+        json={"hostname": "test-host", "os": "windows", "arch": "amd64"},
     )
     return reg_response.json()["device_id"]
 
 
-def test_report_sensors(client: TestClient, registered_device: str):
+def test_report_sensors(client: TestClient, registered_device: str, auth_headers: dict):
     response = client.post(
         f"/api/devices/{registered_device}/sensors",
+        headers=auth_headers,
         json={
             "sensors": [
                 {
@@ -42,18 +41,29 @@ def test_report_sensors(client: TestClient, registered_device: str):
     assert response.json()["count"] == 2
 
 
-def test_report_sensors_device_not_found(client: TestClient):
+def test_report_sensors_no_auth(client: TestClient, registered_device: str):
+    """Test that reporting sensors without API key fails."""
+    response = client.post(
+        f"/api/devices/{registered_device}/sensors",
+        json={"sensors": []},
+    )
+    assert response.status_code == 401
+
+
+def test_report_sensors_device_not_found(client: TestClient, auth_headers: dict):
     response = client.post(
         "/api/devices/nonexistent/sensors",
+        headers=auth_headers,
         json={"sensors": []},
     )
     assert response.status_code == 404
 
 
-def test_get_sensors(client: TestClient, registered_device: str):
+def test_get_sensors(client: TestClient, registered_device: str, auth_headers: dict):
     # First report sensors
     client.post(
         f"/api/devices/{registered_device}/sensors",
+        headers=auth_headers,
         json={
             "sensors": [
                 {
@@ -67,7 +77,7 @@ def test_get_sensors(client: TestClient, registered_device: str):
         },
     )
 
-    # Then get sensors
+    # Then get sensors (UI endpoint - no auth needed)
     response = client.get(f"/api/devices/{registered_device}/sensors")
     assert response.status_code == 200
     sensors = response.json()
@@ -81,10 +91,11 @@ def test_get_sensors_device_not_found(client: TestClient):
     assert response.status_code == 404
 
 
-def test_update_sensor_config(client: TestClient, registered_device: str):
+def test_update_sensor_config(client: TestClient, registered_device: str, auth_headers: dict):
     # Report sensors first
     client.post(
         f"/api/devices/{registered_device}/sensors",
+        headers=auth_headers,
         json={
             "sensors": [
                 {
@@ -105,7 +116,7 @@ def test_update_sensor_config(client: TestClient, registered_device: str):
         },
     )
 
-    # Enable one sensor
+    # Enable one sensor (UI endpoint - no auth needed)
     response = client.put(
         f"/api/devices/{registered_device}/sensors/config",
         json={"enabled": ["hwinfo:temp:cpu"]},
@@ -129,10 +140,11 @@ def test_update_sensor_config_device_not_found(client: TestClient):
     assert response.status_code == 404
 
 
-def test_get_sensor_config(client: TestClient, registered_device: str):
+def test_get_sensor_config(client: TestClient, registered_device: str, auth_headers: dict):
     # Report and enable sensors
     client.post(
         f"/api/devices/{registered_device}/sensors",
+        headers=auth_headers,
         json={
             "sensors": [
                 {
@@ -150,21 +162,34 @@ def test_get_sensor_config(client: TestClient, registered_device: str):
         json={"enabled": ["hwinfo:temp:cpu"]},
     )
 
-    # Get config
-    response = client.get(f"/api/devices/{registered_device}/sensors/config")
+    # Get config (agent endpoint - requires auth)
+    response = client.get(
+        f"/api/devices/{registered_device}/sensors/config",
+        headers=auth_headers,
+    )
     assert response.status_code == 200
     assert "hwinfo:temp:cpu" in response.json()["enabled"]
 
 
-def test_get_sensor_config_device_not_found(client: TestClient):
-    response = client.get("/api/devices/nonexistent/sensors/config")
+def test_get_sensor_config_no_auth(client: TestClient, registered_device: str):
+    """Test that getting sensor config without API key fails."""
+    response = client.get(f"/api/devices/{registered_device}/sensors/config")
+    assert response.status_code == 401
+
+
+def test_get_sensor_config_device_not_found(client: TestClient, auth_headers: dict):
+    response = client.get(
+        "/api/devices/nonexistent/sensors/config",
+        headers=auth_headers,
+    )
     assert response.status_code == 404
 
 
-def test_delete_device_cascades_sensors(client: TestClient, registered_device: str):
+def test_delete_device_cascades_sensors(client: TestClient, registered_device: str, auth_headers: dict):
     # Report sensors
     client.post(
         f"/api/devices/{registered_device}/sensors",
+        headers=auth_headers,
         json={
             "sensors": [
                 {
@@ -187,11 +212,12 @@ def test_delete_device_cascades_sensors(client: TestClient, registered_device: s
     assert response.status_code == 404
 
 
-def test_report_sensors_upsert(client: TestClient, registered_device: str):
+def test_report_sensors_upsert(client: TestClient, registered_device: str, auth_headers: dict):
     """Re-reporting sensors should update metadata but preserve enabled status."""
     # Initial report
     client.post(
         f"/api/devices/{registered_device}/sensors",
+        headers=auth_headers,
         json={
             "sensors": [
                 {
@@ -214,6 +240,7 @@ def test_report_sensors_upsert(client: TestClient, registered_device: str):
     # Re-report with updated name
     client.post(
         f"/api/devices/{registered_device}/sensors",
+        headers=auth_headers,
         json={
             "sensors": [
                 {

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
+from server.core.auth import verify_api_key
 from server.core.database import get_session
 from server.core.logger import log_info
 from server.models.models import Device, DeviceSensor
@@ -20,6 +21,7 @@ def report_sensors(
     device_id: str,
     request: ReportSensorsRequest,
     session: Session = Depends(get_session),
+    _: None = Depends(verify_api_key),
 ):
     """Agent reports available sensors for discovery."""
     device = session.get(Device, device_id)
@@ -101,7 +103,11 @@ def update_sensor_config(
 
 
 @router.get("/{device_id}/sensors/config", response_model=SensorConfigResponse)
-def get_sensor_config(device_id: str, session: Session = Depends(get_session)):
+def get_sensor_config(
+    device_id: str,
+    session: Session = Depends(get_session),
+    _: None = Depends(verify_api_key),
+):
     """Agent fetches its sensor config (which sensors to track)."""
     device = session.get(Device, device_id)
     if not device:

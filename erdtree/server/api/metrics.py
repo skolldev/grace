@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 
+from server.core.auth import verify_api_key
 from server.core.database import get_session
 from server.models.models import Device, Metric, utc_now
 from server.models.schemas import MetricsPayload, MetricsResponse
@@ -11,7 +12,11 @@ router = APIRouter()
 
 
 @router.post("", response_model=MetricsResponse)
-def push_metrics(payload: MetricsPayload, session: Session = Depends(get_session)):
+def push_metrics(
+    payload: MetricsPayload,
+    session: Session = Depends(get_session),
+    _: None = Depends(verify_api_key),
+):
     # Verify device exists
     device = session.get(Device, payload.device_id)
     if not device:

@@ -1,18 +1,11 @@
-import pytest
 from fastapi.testclient import TestClient
 
 
-@pytest.fixture
-def valid_token(client: TestClient) -> str:
-    response = client.post("/api/admin/tokens")
-    return response.json()["token"]
-
-
-def test_register_device(client: TestClient, valid_token: str):
+def test_register_device(client: TestClient, auth_headers: dict):
     response = client.post(
         "/api/devices/register",
+        headers=auth_headers,
         json={
-            "token": valid_token,
             "hostname": "test-host",
             "os": "linux",
             "arch": "amd64",
@@ -25,33 +18,49 @@ def test_register_device(client: TestClient, valid_token: str):
     assert data["message"] == "Device registered successfully"
 
 
-def test_register_device_invalid_token(client: TestClient):
+def test_register_device_no_auth(client: TestClient):
+    """Test that registration without API key fails."""
     response = client.post(
         "/api/devices/register",
         json={
-            "token": "invalid-token",
             "hostname": "test-host",
             "os": "linux",
             "arch": "amd64",
         },
     )
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Invalid token"
+    assert response.status_code == 401
 
 
-def test_register_device_token_already_used(client: TestClient, valid_token: str):
-    # First registration
-    client.post(
-        "/api/devices/register",
-        json={"token": valid_token, "hostname": "host1", "os": "linux", "arch": "amd64"},
-    )
-    # Second registration with same token
+def test_register_device_invalid_api_key(client: TestClient):
+    """Test that registration with invalid API key fails."""
     response = client.post(
         "/api/devices/register",
-        json={"token": valid_token, "hostname": "host2", "os": "linux", "arch": "amd64"},
+        headers={"Authorization": "Bearer invalid-key"},
+        json={
+            "hostname": "test-host",
+            "os": "linux",
+            "arch": "amd64",
+        },
     )
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Token already used"
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid API key"
+
+
+def test_register_multiple_devices(client: TestClient, auth_headers: dict):
+    """Test that multiple devices can register with the same API key."""
+    response1 = client.post(
+        "/api/devices/register",
+        headers=auth_headers,
+        json={"hostname": "host1", "os": "linux", "arch": "amd64"},
+    )
+    response2 = client.post(
+        "/api/devices/register",
+        headers=auth_headers,
+        json={"hostname": "host2", "os": "windows", "arch": "amd64"},
+    )
+    assert response1.status_code == 200
+    assert response2.status_code == 200
+    assert response1.json()["device_id"] != response2.json()["device_id"]
 
 
 def test_list_devices_empty(client: TestClient):
@@ -60,10 +69,11 @@ def test_list_devices_empty(client: TestClient):
     assert response.json() == []
 
 
-def test_list_devices(client: TestClient, valid_token: str):
+def test_list_devices(client: TestClient, auth_headers: dict):
     client.post(
         "/api/devices/register",
-        json={"token": valid_token, "hostname": "test-host", "os": "linux", "arch": "amd64"},
+        headers=auth_headers,
+        json={"hostname": "test-host", "os": "linux", "arch": "amd64"},
     )
     response = client.get("/api/devices")
     assert response.status_code == 200
@@ -72,10 +82,11 @@ def test_list_devices(client: TestClient, valid_token: str):
     assert devices[0]["hostname"] == "test-host"
 
 
-def test_get_device(client: TestClient, valid_token: str):
+def test_get_device(client: TestClient, auth_headers: dict):
     reg_response = client.post(
         "/api/devices/register",
-        json={"token": valid_token, "hostname": "test-host", "os": "linux", "arch": "amd64"},
+        headers=auth_headers,
+        json={"hostname": "test-host", "os": "linux", "arch": "amd64"},
     )
     device_id = reg_response.json()["device_id"]
 
@@ -93,10 +104,11 @@ def test_get_device_not_found(client: TestClient):
     assert response.json()["detail"] == "Device not found"
 
 
-def test_delete_device(client: TestClient, valid_token: str):
+def test_delete_device(client: TestClient, auth_headers: dict):
     reg_response = client.post(
         "/api/devices/register",
-        json={"token": valid_token, "hostname": "test-host", "os": "linux", "arch": "amd64"},
+        headers=auth_headers,
+        json={"hostname": "test-host", "os": "linux", "arch": "amd64"},
     )
     device_id = reg_response.json()["device_id"]
 

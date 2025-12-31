@@ -37,13 +37,13 @@ func main() {
 	// Persistent flags
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file path")
 	rootCmd.PersistentFlags().String("server", "", "Erdtree server URL (required)")
-	rootCmd.PersistentFlags().String("token", "", "Registration token (required for first run)")
+	rootCmd.PersistentFlags().String("api-key", "", "API key for server authentication (required)")
 	rootCmd.PersistentFlags().Duration("interval", 10*time.Second, "Metric collection interval")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level: debug, info, warn, error")
 
 	// Bind to viper
 	viper.BindPFlag("server", rootCmd.PersistentFlags().Lookup("server"))
-	viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token"))
+	viper.BindPFlag("api_key", rootCmd.PersistentFlags().Lookup("api-key"))
 	viper.BindPFlag("interval", rootCmd.PersistentFlags().Lookup("interval"))
 	viper.BindPFlag("log_level", rootCmd.PersistentFlags().Lookup("log-level"))
 
@@ -152,9 +152,7 @@ func installCmd() *cobra.Command {
 			svcConfig.Arguments = []string{
 				"run",
 				"--server", cfg.Server,
-			}
-			if cfg.Token != "" {
-				svcConfig.Arguments = append(svcConfig.Arguments, "--token", cfg.Token)
+				"--api-key", cfg.APIKey,
 			}
 
 			ag, err := agent.New(cfg, logger)

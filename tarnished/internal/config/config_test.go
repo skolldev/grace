@@ -34,12 +34,12 @@ func TestLoad_EnvOverride(t *testing.T) {
 
 	// Set environment variables
 	os.Setenv("GRACE_SERVER", "http://env-server.local")
-	os.Setenv("GRACE_TOKEN", "env-token-123")
+	os.Setenv("GRACE_API_KEY", "grc_env-key-123")
 	os.Setenv("GRACE_INTERVAL", "30s")
 	os.Setenv("GRACE_LOG_LEVEL", "debug")
 	defer func() {
 		os.Unsetenv("GRACE_SERVER")
-		os.Unsetenv("GRACE_TOKEN")
+		os.Unsetenv("GRACE_API_KEY")
 		os.Unsetenv("GRACE_INTERVAL")
 		os.Unsetenv("GRACE_LOG_LEVEL")
 	}()
@@ -52,8 +52,8 @@ func TestLoad_EnvOverride(t *testing.T) {
 	if cfg.Server != "http://env-server.local" {
 		t.Errorf("Server = %s, want http://env-server.local", cfg.Server)
 	}
-	if cfg.Token != "env-token-123" {
-		t.Errorf("Token = %s, want env-token-123", cfg.Token)
+	if cfg.APIKey != "grc_env-key-123" {
+		t.Errorf("APIKey = %s, want grc_env-key-123", cfg.APIKey)
 	}
 	if cfg.Interval != 30*time.Second {
 		t.Errorf("Interval = %v, want 30s", cfg.Interval)
@@ -70,7 +70,7 @@ func TestLoad_ConfigFile(t *testing.T) {
 	cfgPath := filepath.Join(tmpDir, "agent.yaml")
 
 	content := `server: http://file-server.local
-token: file-token-456
+api_key: grc_file-key-456
 interval: 1m
 log_level: warn`
 
@@ -86,8 +86,8 @@ log_level: warn`
 	if cfg.Server != "http://file-server.local" {
 		t.Errorf("Server = %s, want http://file-server.local", cfg.Server)
 	}
-	if cfg.Token != "file-token-456" {
-		t.Errorf("Token = %s, want file-token-456", cfg.Token)
+	if cfg.APIKey != "grc_file-key-456" {
+		t.Errorf("APIKey = %s, want grc_file-key-456", cfg.APIKey)
 	}
 	if cfg.Interval != time.Minute {
 		t.Errorf("Interval = %v, want 1m", cfg.Interval)
@@ -104,7 +104,7 @@ func TestLoad_EnvOverridesFile(t *testing.T) {
 	cfgPath := filepath.Join(tmpDir, "agent.yaml")
 
 	content := `server: http://file-server.local
-token: file-token`
+api_key: grc_file-key`
 
 	if err := os.WriteFile(cfgPath, []byte(content), 0644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -141,7 +141,7 @@ func TestLoad_MissingConfigFileIsOK(t *testing.T) {
 func TestValidate_ValidConfig(t *testing.T) {
 	cfg := &Config{
 		Server:   "https://example.com",
-		Token:    "token",
+		APIKey:   "grc_test-key",
 		Interval: 10 * time.Second,
 		LogLevel: "info",
 	}

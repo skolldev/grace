@@ -9,6 +9,13 @@ def utc_now() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
+class Setting(SQLModel, table=True):
+    __tablename__ = "settings"
+
+    key: str = Field(primary_key=True)
+    value: str
+
+
 class Device(SQLModel, table=True):
     __tablename__ = "devices"
 
@@ -19,15 +26,6 @@ class Device(SQLModel, table=True):
     ip_address: Optional[str] = None
     registered_at: datetime = Field(default_factory=utc_now)
     last_seen_at: datetime = Field(default_factory=utc_now)
-
-
-class RegistrationToken(SQLModel, table=True):
-    __tablename__ = "registration_tokens"
-
-    token: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
-    created_at: datetime = Field(default_factory=utc_now)
-    expires_at: datetime
-    used: bool = Field(default=False)
 
 
 class Metric(SQLModel, table=True):

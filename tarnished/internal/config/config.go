@@ -17,7 +17,7 @@ const (
 
 type Config struct {
 	Server         string        `mapstructure:"server"`
-	Token          string        `mapstructure:"token"`
+	APIKey         string        `mapstructure:"api_key"`
 	Interval       time.Duration `mapstructure:"interval"`
 	LogLevel       string        `mapstructure:"log_level"`
 	SensorsEnabled bool          `mapstructure:"sensors_enabled"`
@@ -46,7 +46,7 @@ func Load(cfgFile string) (*Config, error) {
 	// Bind environment variables
 	viper.SetEnvPrefix("GRACE")
 	viper.BindEnv("server", "GRACE_SERVER")
-	viper.BindEnv("token", "GRACE_TOKEN")
+	viper.BindEnv("api_key", "GRACE_API_KEY")
 	viper.BindEnv("interval", "GRACE_INTERVAL")
 	viper.BindEnv("log_level", "GRACE_LOG_LEVEL")
 	viper.BindEnv("sensors_enabled", "GRACE_SENSORS_ENABLED")
