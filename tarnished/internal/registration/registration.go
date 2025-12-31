@@ -18,6 +18,9 @@ type State struct {
 	RegisteredAt time.Time `json:"registered_at"`
 }
 
+// saveStateFunc is a variable that can be swapped for testing
+var saveStateFunc = SaveState
+
 func LoadState() (*State, error) {
 	path := config.DefaultStatePath()
 	data, err := os.ReadFile(path)
@@ -77,7 +80,7 @@ func Register(client *httpclient.Client) (*State, error) {
 		RegisteredAt: time.Now().UTC(),
 	}
 
-	if err := SaveState(state); err != nil {
+	if err := saveStateFunc(state); err != nil {
 		return nil, fmt.Errorf("failed to save state: %w", err)
 	}
 

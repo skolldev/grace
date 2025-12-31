@@ -249,6 +249,3 @@ func saveStateToPath(path string, state *State) error {
 
 	return os.WriteFile(path, data, 0600)
 }
-
-// saveStateFunc is a variable that can be swapped for testing
-var saveStateFunc = SaveState

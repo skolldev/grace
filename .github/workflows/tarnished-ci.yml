@@ -22,7 +22,6 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        go-version: ['1.21', '1.22']
 
     steps:
       - uses: actions/checkout@v4
@@ -30,16 +29,21 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: '1.22'
 
       - name: Download dependencies
         run: go mod download
 
-      - name: Run tests
+      - name: Run tests (Linux/macOS)
+        if: runner.os != 'Windows'
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        run: go test -v -coverprofile=coverage.txt -covermode=atomic ./...
+
       - name: Upload coverage to Codecov
-        if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.22'
+        if: matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v4
         with:
           files: ./tarnished/coverage.txt

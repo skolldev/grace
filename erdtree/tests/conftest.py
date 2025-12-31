@@ -6,6 +6,8 @@ from sqlmodel.pool import StaticPool
 from server.main import app
 from server.core.database import get_session
 from server.core import auth
+# Import all models to ensure they're registered before create_all()
+from server.models.models import Device, Metric, Log, Setting, DeviceSensor  # noqa: F401
 
 
 @pytest.fixture(name="session")

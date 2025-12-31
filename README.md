@@ -48,5 +48,5 @@ See component READMEs for detailed setup and development instructions:
 
 GitHub Actions workflows automatically run tests and linting on all pull requests:
 
-- **Erdtree CI**: Python 3.11-3.12, pytest, ruff
-- **Tarnished CI**: Go 1.21-1.22, tests on Linux/Windows/macOS, golangci-lint
+- **Erdtree CI**: Python 3.11, pytest, ruff
+- **Tarnished CI**: Go 1.22, tests on Linux/Windows/macOS, golangci-lint
