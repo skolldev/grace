@@ -51,6 +51,7 @@ jobs:
           files: ./erdtree/junit.xml
           flags: erdtree
           report_type: test_results
+          verbose: true
 
   lint:
     runs-on: ubuntu-latest

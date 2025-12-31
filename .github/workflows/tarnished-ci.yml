@@ -61,6 +61,7 @@ jobs:
           files: ./tarnished/junit.xml
           flags: tarnished
           report_type: test_results
+          verbose: true
 
   lint:
     runs-on: ubuntu-latest
