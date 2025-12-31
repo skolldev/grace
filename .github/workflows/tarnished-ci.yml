@@ -34,13 +34,16 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Install gotestsum
+        run: go install gotest.tools/gotestsum@latest
+
       - name: Run tests (Linux/macOS)
         if: runner.os != 'Windows'
-        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+        run: gotestsum --junitfile junit.xml -- -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 
       - name: Run tests (Windows)
         if: runner.os == 'Windows'
-        run: go test -v "-coverprofile=coverage.txt" "-covermode=atomic" ./...
+        run: gotestsum --junitfile junit.xml -- -v "-coverprofile=coverage.txt" "-covermode=atomic" ./...
 
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest'
@@ -48,6 +51,14 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./tarnished/coverage.txt
+          flags: tarnished
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() && matrix.os == 'ubuntu-latest' }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./tarnished/junit.xml
           flags: tarnished
 
   lint:

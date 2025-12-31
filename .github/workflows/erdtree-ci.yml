@@ -34,13 +34,21 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Run tests with coverage
-        run: pytest tests/ -v --cov=server --cov-report=xml
+        run: pytest tests/ -v --cov=server --cov-report=xml --junitxml=junit.xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./erdtree/coverage.xml
+          flags: erdtree
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./erdtree/junit.xml
           flags: erdtree
 
   lint:
