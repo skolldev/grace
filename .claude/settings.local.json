@@ -10,7 +10,8 @@
       "Bash(.venv/Scripts/ruff check server/ tests/)",
       "Bash(.venv/Scripts/ruff format --check server/ tests/)",
       "Bash(.venv/Scripts/ruff format server/ tests/)",
-      "Bash(go vet:*)"
+      "Bash(go vet:*)",
+      "Bash(go tool cover:*)"
     ]
   }
 }

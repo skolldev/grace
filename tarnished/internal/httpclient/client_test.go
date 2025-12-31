@@ -305,3 +305,196 @@ func TestClient_PushMetricsWithRetry_BackoffTiming(t *testing.T) {
 		t.Errorf("backoff not exponential: interval1=%v, interval2=%v", interval1, interval2)
 	}
 }
+
+func TestClient_ReportSensors_Success(t *testing.T) {
+	var receivedReq ReportSensorsRequest
+	var receivedDeviceID string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Extract device ID from path: /api/devices/{device_id}/sensors
+		if r.Method != http.MethodPost {
+			t.Errorf("unexpected method: %s", r.Method)
+		}
+
+		// Parse path to get device ID
+		expectedPrefix := "/api/devices/"
+		expectedSuffix := "/sensors"
+		path := r.URL.Path
+		if len(path) > len(expectedPrefix)+len(expectedSuffix) {
+			receivedDeviceID = path[len(expectedPrefix) : len(path)-len(expectedSuffix)]
+		}
+
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &receivedReq)
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(ReportSensorsResponse{Status: "ok", Count: len(receivedReq.Sensors)})
+	}))
+	defer server.Close()
+
+	client := New(server.URL, "grc_test-key", testLogger())
+	sensors := []SensorInfo{
+		{SensorID: "cpu_temp", Name: "CPU Temperature", SensorType: "temperature", Unit: "°C", Source: "hwinfo"},
+		{SensorID: "gpu_temp", Name: "GPU Temperature", SensorType: "temperature", Unit: "°C", Source: "hwinfo"},
+	}
+
+	err := client.ReportSensors("device-123", sensors)
+	if err != nil {
+		t.Fatalf("ReportSensors failed: %v", err)
+	}
+
+	if receivedDeviceID != "device-123" {
+		t.Errorf("deviceID = %s, want device-123", receivedDeviceID)
+	}
+	if len(receivedReq.Sensors) != 2 {
+		t.Errorf("sensors count = %d, want 2", len(receivedReq.Sensors))
+	}
+}
+
+func TestClient_ReportSensors_ServerError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("internal error"))
+	}))
+	defer server.Close()
+
+	client := New(server.URL, "grc_test-key", testLogger())
+	err := client.ReportSensors("device-123", []SensorInfo{})
+
+	if err == nil {
+		t.Error("expected error for server error response")
+	}
+}
+
+func TestClient_ReportSensors_EmptyList(t *testing.T) {
+	var receivedReq ReportSensorsRequest
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &receivedReq)
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(ReportSensorsResponse{Status: "ok", Count: 0})
+	}))
+	defer server.Close()
+
+	client := New(server.URL, "grc_test-key", testLogger())
+	err := client.ReportSensors("device-123", []SensorInfo{})
+
+	if err != nil {
+		t.Fatalf("ReportSensors with empty list failed: %v", err)
+	}
+	if len(receivedReq.Sensors) != 0 {
+		t.Errorf("sensors count = %d, want 0", len(receivedReq.Sensors))
+	}
+}
+
+func TestClient_GetSensorConfig_Success(t *testing.T) {
+	expectedEnabled := []string{"cpu_temp", "gpu_temp", "fan_speed"}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("unexpected method: %s", r.Method)
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(SensorConfigResponse{Enabled: expectedEnabled})
+	}))
+	defer server.Close()
+
+	client := New(server.URL, "grc_test-key", testLogger())
+	enabled, err := client.GetSensorConfig("device-123")
+
+	if err != nil {
+		t.Fatalf("GetSensorConfig failed: %v", err)
+	}
+	if len(enabled) != len(expectedEnabled) {
+		t.Errorf("enabled count = %d, want %d", len(enabled), len(expectedEnabled))
+	}
+	for i, id := range enabled {
+		if id != expectedEnabled[i] {
+			t.Errorf("enabled[%d] = %s, want %s", i, id, expectedEnabled[i])
+		}
+	}
+}
+
+func TestClient_GetSensorConfig_ServerError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("device not found"))
+	}))
+	defer server.Close()
+
+	client := New(server.URL, "grc_test-key", testLogger())
+	_, err := client.GetSensorConfig("unknown-device")
+
+	if err == nil {
+		t.Error("expected error for server error response")
+	}
+}
+
+func TestClient_GetSensorConfig_EmptyEnabled(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(SensorConfigResponse{Enabled: []string{}})
+	}))
+	defer server.Close()
+
+	client := New(server.URL, "grc_test-key", testLogger())
+	enabled, err := client.GetSensorConfig("device-123")
+
+	if err != nil {
+		t.Fatalf("GetSensorConfig failed: %v", err)
+	}
+	if len(enabled) != 0 {
+		t.Errorf("enabled count = %d, want 0", len(enabled))
+	}
+}
+
+func TestClient_GetSensorConfig_MalformedJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("not valid json"))
+	}))
+	defer server.Close()
+
+	client := New(server.URL, "grc_test-key", testLogger())
+	_, err := client.GetSensorConfig("device-123")
+
+	if err == nil {
+		t.Error("expected error for malformed JSON response")
+	}
+}
+
+func TestClient_Register_MalformedJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("{invalid json"))
+	}))
+	defer server.Close()
+
+	client := New(server.URL, "grc_test-key", testLogger())
+	_, err := client.Register(&RegisterRequest{Hostname: "test"})
+
+	if err == nil {
+		t.Error("expected error for malformed JSON response")
+	}
+}
+
+func TestClient_NoAuthHeader_WhenAPIKeyEmpty(t *testing.T) {
+	var receivedAuthHeader string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedAuthHeader = r.Header.Get("Authorization")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(SensorConfigResponse{Enabled: []string{}})
+	}))
+	defer server.Close()
+
+	// Create client with empty API key
+	client := New(server.URL, "", testLogger())
+	_, _ = client.GetSensorConfig("device-123")
+
+	if receivedAuthHeader != "" {
+		t.Errorf("Authorization header = %s, want empty", receivedAuthHeader)
+	}
+}

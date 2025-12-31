@@ -238,6 +238,56 @@ func TestVirtualFSTypes_Coverage(t *testing.T) {
 	}
 }
 
+func TestIsVirtualFS_CaseInsensitive(t *testing.T) {
+	// Filesystem types should be matched case-insensitively
+	// Some systems report FS types in different cases
+	tests := []struct {
+		fstype string
+		want   bool
+	}{
+		{"TMPFS", true},
+		{"TmpFs", true},
+		{"PROC", true},
+		{"Overlay", true},
+		{"EXT4", false},
+		{"Ext4", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.fstype, func(t *testing.T) {
+			got := isVirtualFS(tt.fstype, "/mnt/test")
+			if got != tt.want {
+				t.Errorf("isVirtualFS(%q, ...) = %v, want %v", tt.fstype, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsVirtualFS_MountpointNotContains(t *testing.T) {
+	// Mountpoints that contain (but don't start with) excluded prefixes should NOT be excluded
+	// e.g., /data/proc should be a valid disk, not excluded
+	tests := []struct {
+		name       string
+		mountpoint string
+		want       bool
+	}{
+		{"data/proc", "/data/proc", false},
+		{"home/run", "/home/run", false},
+		{"mnt/sys", "/mnt/sys", false},
+		{"var/dev", "/var/dev", false},
+		{"backup/snap", "/backup/snap", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isVirtualFS("ext4", tt.mountpoint)
+			if got != tt.want {
+				t.Errorf("isVirtualFS(ext4, %q) = %v, want %v", tt.mountpoint, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestMetrics_JSONSerializable(t *testing.T) {
 	c := New(testLogger())
 	metrics, err := c.Collect()
