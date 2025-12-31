@@ -5,7 +5,12 @@
       "Bash(tree:*)",
       "Bash(go test:*)",
       "Bash(go build:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(test:*)",
+      "Bash(.venv/Scripts/ruff check server/ tests/)",
+      "Bash(.venv/Scripts/ruff format --check server/ tests/)",
+      "Bash(.venv/Scripts/ruff format server/ tests/)",
+      "Bash(go vet:*)"
     ]
   }
 }

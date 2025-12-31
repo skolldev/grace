@@ -138,6 +138,8 @@ func (r *Reader) Read() ([]SensorEntry, error) {
 	defer windows.UnmapViewOfFile(ptr)
 
 	// Read raw data (1MB should be plenty)
+	// Safe: ptr is from MapViewOfFile and kept alive until UnmapViewOfFile
+	//nolint:govet // Safe conversion of Windows memory-mapped pointer
 	data := unsafe.Slice((*byte)(unsafe.Pointer(ptr)), 1024*1024)
 
 	// Read header manually to avoid Go struct alignment issues

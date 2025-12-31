@@ -91,7 +91,9 @@ def test_get_sensors_device_not_found(client: TestClient):
     assert response.status_code == 404
 
 
-def test_update_sensor_config(client: TestClient, registered_device: str, auth_headers: dict):
+def test_update_sensor_config(
+    client: TestClient, registered_device: str, auth_headers: dict
+):
     # Report sensors first
     client.post(
         f"/api/devices/{registered_device}/sensors",
@@ -140,7 +142,9 @@ def test_update_sensor_config_device_not_found(client: TestClient):
     assert response.status_code == 404
 
 
-def test_get_sensor_config(client: TestClient, registered_device: str, auth_headers: dict):
+def test_get_sensor_config(
+    client: TestClient, registered_device: str, auth_headers: dict
+):
     # Report and enable sensors
     client.post(
         f"/api/devices/{registered_device}/sensors",
@@ -185,7 +189,9 @@ def test_get_sensor_config_device_not_found(client: TestClient, auth_headers: di
     assert response.status_code == 404
 
 
-def test_delete_device_cascades_sensors(client: TestClient, registered_device: str, auth_headers: dict):
+def test_delete_device_cascades_sensors(
+    client: TestClient, registered_device: str, auth_headers: dict
+):
     # Report sensors
     client.post(
         f"/api/devices/{registered_device}/sensors",
@@ -212,7 +218,9 @@ def test_delete_device_cascades_sensors(client: TestClient, registered_device: s
     assert response.status_code == 404
 
 
-def test_report_sensors_upsert(client: TestClient, registered_device: str, auth_headers: dict):
+def test_report_sensors_upsert(
+    client: TestClient, registered_device: str, auth_headers: dict
+):
     """Re-reporting sensors should update metadata but preserve enabled status."""
     # Initial report
     client.post(

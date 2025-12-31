@@ -116,7 +116,7 @@ def get_sensor_config(
     sensors = session.exec(
         select(DeviceSensor)
         .where(DeviceSensor.device_id == device_id)
-        .where(DeviceSensor.enabled == True)
+        .where(DeviceSensor.enabled)
     ).all()
 
     return SensorConfigResponse(enabled=[s.sensor_id for s in sensors])

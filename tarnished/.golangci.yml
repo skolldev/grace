@@ -1,0 +1,45 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - errcheck      # Check for unchecked errors
+    - gosimple      # Simplify code
+    - govet         # Reports suspicious constructs
+    - ineffassign   # Detect ineffectual assignments
+    - staticcheck   # Advanced Go linter
+    - typecheck     # Type-checks code
+    - unused        # Check for unused code
+    - gofmt         # Check formatting
+    - goimports     # Check imports
+    - misspell      # Check for misspelled words
+    - revive        # Fast, configurable, extensible, flexible linter
+
+linters-settings:
+  errcheck:
+    check-blank: true
+    check-type-assertions: true
+
+  goimports:
+    local-prefixes: github.com/grace/tarnished
+
+  revive:
+    rules:
+      - name: var-naming
+        disabled: false
+      - name: exported
+        disabled: false
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+    # Exclude unsafe.Pointer warnings in sensors package (Windows low-level APIs)
+    - path: internal/sensors/hwinfo\.go
+      text: "possible misuse of unsafe.Pointer"
+      linters:
+        - govet

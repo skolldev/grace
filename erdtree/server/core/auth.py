@@ -37,7 +37,9 @@ def get_or_create_api_key() -> str:
     global _api_key
     if _api_key is not None:
         return _api_key
-    raise RuntimeError("API key not initialized. Call get_or_create_api_key_with_session first.")
+    raise RuntimeError(
+        "API key not initialized. Call get_or_create_api_key_with_session first."
+    )
 
 
 def verify_api_key(
