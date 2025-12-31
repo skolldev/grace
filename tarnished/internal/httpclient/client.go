@@ -100,7 +100,10 @@ func (c *Client) Register(req *RegisterRequest) (*RegisterResponse, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("registration failed (status %d)", resp.StatusCode)
+		}
 		return nil, fmt.Errorf("registration failed (status %d): %s", resp.StatusCode, string(bodyBytes))
 	}
 
@@ -151,7 +154,10 @@ func (c *Client) PushMetrics(deviceID string, timestamp time.Time, metrics *coll
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("push metrics failed (status %d)", resp.StatusCode)
+		}
 		return fmt.Errorf("push metrics failed (status %d): %s", resp.StatusCode, string(bodyBytes))
 	}
 
@@ -229,7 +235,10 @@ func (c *Client) ReportSensors(deviceID string, sensors []SensorInfo) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("report sensors failed (status %d)", resp.StatusCode)
+		}
 		return fmt.Errorf("report sensors failed (status %d): %s", resp.StatusCode, string(bodyBytes))
 	}
 
@@ -254,7 +263,10 @@ func (c *Client) GetSensorConfig(deviceID string) ([]string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("get sensor config failed (status %d)", resp.StatusCode)
+		}
 		return nil, fmt.Errorf("get sensor config failed (status %d): %s", resp.StatusCode, string(bodyBytes))
 	}
 

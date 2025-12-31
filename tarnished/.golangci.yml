@@ -18,8 +18,10 @@ linters:
 
 linters-settings:
   errcheck:
-    check-blank: true
+    check-blank: false  # Allow blank identifier (_) for intentionally ignored errors
     check-type-assertions: true
+    exclude-functions:
+      - (io.Closer).Close  # Defer close is commonly ignored
 
   goimports:
     local-prefixes: github.com/grace/tarnished

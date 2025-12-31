@@ -168,9 +168,10 @@ func TestCollector_Collect_NetworkMetrics(t *testing.T) {
 	}
 
 	// Network metrics should be collected (values depend on network activity)
-	// Just verify the fields exist and don't overflow
-	if metrics.Network.RxBytes < 0 || metrics.Network.TxBytes < 0 {
-		t.Error("Network bytes should not be negative")
+	// RxBytes and TxBytes are uint64, so they're always >= 0
+	// Just verify metrics were collected
+	if metrics == nil {
+		t.Fatal("Expected metrics to be non-nil")
 	}
 }
 

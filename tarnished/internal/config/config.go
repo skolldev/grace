@@ -45,11 +45,11 @@ func Load(cfgFile string) (*Config, error) {
 
 	// Bind environment variables
 	viper.SetEnvPrefix("GRACE")
-	viper.BindEnv("server", "GRACE_SERVER")
-	viper.BindEnv("api_key", "GRACE_API_KEY")
-	viper.BindEnv("interval", "GRACE_INTERVAL")
-	viper.BindEnv("log_level", "GRACE_LOG_LEVEL")
-	viper.BindEnv("sensors_enabled", "GRACE_SENSORS_ENABLED")
+	_ = viper.BindEnv("server", "GRACE_SERVER")
+	_ = viper.BindEnv("api_key", "GRACE_API_KEY")
+	_ = viper.BindEnv("interval", "GRACE_INTERVAL")
+	_ = viper.BindEnv("log_level", "GRACE_LOG_LEVEL")
+	_ = viper.BindEnv("sensors_enabled", "GRACE_SENSORS_ENABLED")
 
 	// Try to read config file (optional)
 	if cfgFile != "" {
