@@ -4,8 +4,9 @@ from sqlmodel import SQLModel, Session, create_engine
 from sqlmodel.pool import StaticPool
 
 from server.main import app
-from server.core.database import get_session
+from server.core.database import get_session, set_engine_override
 from server.core import auth
+
 # Import all models to ensure they're registered before create_all()
 from server.models.models import Device, Metric, Log, Setting, DeviceSensor  # noqa: F401
 
@@ -18,8 +19,11 @@ def session_fixture():
         poolclass=StaticPool,
     )
     SQLModel.metadata.create_all(engine)
+    # Override the engine so logger and other components use test database
+    set_engine_override(engine)
     with Session(engine) as session:
         yield session
+    set_engine_override(None)
 
 
 @pytest.fixture(name="client")

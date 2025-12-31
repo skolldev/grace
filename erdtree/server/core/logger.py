@@ -1,6 +1,6 @@
 from sqlmodel import Session
 
-from server.core.database import engine
+from server.core.database import get_engine
 from server.models.models import Log
 
 
@@ -15,7 +15,7 @@ def log(content: str, source: str, type: str = "info") -> Log:
     Returns:
         The created Log object
     """
-    with Session(engine) as session:
+    with Session(get_engine()) as session:
         entry = Log(content=content, source=source, type=type)
         session.add(entry)
         session.commit()
