@@ -37,7 +37,7 @@ jobs:
         run: pytest tests/ -v --cov=server --cov-report=xml --junitxml=junit.xml
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./erdtree/coverage.xml
@@ -45,11 +45,12 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./erdtree/junit.xml
           flags: erdtree
+          report_type: test_results
 
   lint:
     runs-on: ubuntu-latest

@@ -2,7 +2,7 @@
 
 ![Erdtree CI](https://github.com/skolldev/grace/workflows/Erdtree%20CI/badge.svg)
 ![Tarnished CI](https://github.com/skolldev/grace/workflows/Tarnished%20CI/badge.svg)
-
+[![codecov](https://codecov.io/github/skolldev/grace/graph/badge.svg?token=0NTME28JGI)](https://codecov.io/github/skolldev/grace)
 Self-hosted system monitoring platform with lightweight agent-based metrics collection.
 
 ## Components
