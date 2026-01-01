@@ -99,7 +99,7 @@ class TestSingleRequestLatency:
             start,
             end,
             scenario["resolution"],
-            iterations=10,
+            iterations=100,
         )
 
         # Report results
@@ -219,10 +219,14 @@ class TestConcurrentLoad:
                 assert status == 200
                 times.append(time_ms)
 
-        # Calculate p95
+        # Calculate P95 correctly (handles small sample sizes)
         sorted_times = sorted(times)
-        p95_index = int(len(sorted_times) * 0.95)
-        p95 = sorted_times[p95_index]
+        if len(sorted_times) == 1:
+            p95 = sorted_times[0]
+        else:
+            # P95 is at position 0.95 * (N-1) in sorted list
+            p95_index = int(0.95 * (len(sorted_times) - 1))
+            p95 = sorted_times[p95_index]
 
         print(f"\nConcurrent {concurrent} requests (7d @ 1h):")
         print(f"  P95: {p95:.1f}ms (target: {target_p95_ms}ms, max: {max_p95_ms}ms)")

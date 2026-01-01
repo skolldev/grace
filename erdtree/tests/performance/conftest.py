@@ -19,13 +19,20 @@ from sqlmodel import Session, SQLModel, create_engine
 from server.core import auth
 from server.core.database import get_session, set_engine_override
 from server.main import app
-from server.models.models import Device, DeviceSensor, Log, Metric, Setting  # noqa: F401
+from server.models.models import (
+    Device,
+    DeviceSensor,
+    Log,
+    Metric,
+    Setting,
+)  # noqa: F401
 
 
 def generate_test_metrics(
     session: Session,
     device_id: str,
     days: int,
+    end_time: datetime,
     interval_seconds: int = 10,
 ) -> int:
     """
@@ -40,7 +47,10 @@ def generate_test_metrics(
     Returns:
         Number of rows inserted
     """
-    end = datetime.now(UTC).replace(tzinfo=None)
+    # Set seed for reproducible test data
+    random.seed(42)
+
+    end = end_time
     start = end - timedelta(days=days)
     current = start
 
@@ -125,14 +135,21 @@ def measure_query(
         times.append((t1 - t0) * 1000)  # Convert to ms
 
     sorted_times = sorted(times)
-    p95_index = int(len(sorted_times) * 0.95)
+
+    # Calculate P95 correctly (handles small sample sizes)
+    if len(sorted_times) == 1:
+        p95 = sorted_times[0]
+    else:
+        # P95 is at position 0.95 * (N-1) in sorted list
+        p95_index = int(0.95 * (len(sorted_times) - 1))
+        p95 = sorted_times[p95_index]
 
     return {
         "min": round(min(times), 2),
         "max": round(max(times), 2),
         "mean": round(statistics.mean(times), 2),
         "median": round(statistics.median(times), 2),
-        "p95": round(sorted_times[p95_index], 2),
+        "p95": round(p95, 2),
         "times": times,
     }
 
@@ -213,14 +230,17 @@ def populated_device(perf_client, perf_session, perf_auth_headers):
     )
     device_id = response.json()["device_id"]
 
+    end_time = datetime.now(UTC).replace(tzinfo=None)
     # Generate 90 days of metrics data
     print(f"\nGenerating 90 days of metrics data for device {device_id}...")
-    row_count = generate_test_metrics(perf_session, device_id, days=90)
+    row_count = generate_test_metrics(
+        perf_session, device_id, days=90, end_time=end_time
+    )
     print(f"Generated {row_count:,} rows")
 
     return {
         "device_id": device_id,
         "row_count": row_count,
-        "data_start": datetime.now(UTC).replace(tzinfo=None) - timedelta(days=90),
-        "data_end": datetime.now(UTC).replace(tzinfo=None),
+        "data_start": end_time - timedelta(days=90),
+        "data_end": end_time,
     }
