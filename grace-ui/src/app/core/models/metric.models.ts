@@ -1,5 +1,4 @@
-export interface MetricsPayload {
-  device_id: string;
+export interface MetricsPushPayload {
   timestamp?: string;
   metrics: Record<string, unknown>;
 }

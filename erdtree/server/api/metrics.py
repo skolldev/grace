@@ -6,19 +6,20 @@ from sqlmodel import Session, select
 from server.core.auth import verify_api_key
 from server.core.database import get_session
 from server.models.models import Device, Metric, utc_now
-from server.models.schemas import MetricsPayload, MetricsResponse
+from server.models.schemas import MetricsPushPayload, MetricsResponse
 
 router = APIRouter()
 
 
-@router.post("", response_model=MetricsResponse)
+@router.post("/{device_id}/metrics", response_model=MetricsResponse)
 def push_metrics(
-    payload: MetricsPayload,
+    device_id: str,
+    payload: MetricsPushPayload,
     session: Session = Depends(get_session),
     _: None = Depends(verify_api_key),
 ):
     # Verify device exists
-    device = session.get(Device, payload.device_id)
+    device = session.get(Device, device_id)
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
@@ -28,7 +29,7 @@ def push_metrics(
 
     # Store metrics
     metric = Metric(
-        device_id=payload.device_id,
+        device_id=device_id,
         timestamp=payload.timestamp or utc_now(),
         data=payload.metrics,
     )
@@ -38,7 +39,7 @@ def push_metrics(
     return MetricsResponse(status="ok")
 
 
-@router.get("/{device_id}")
+@router.get("/{device_id}/metrics")
 def get_metrics(
     device_id: str,
     start: Optional[datetime] = Query(None, description="Start time filter"),

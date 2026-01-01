@@ -115,8 +115,8 @@ func (c *Client) Register(req *RegisterRequest) (*RegisterResponse, error) {
 	return &result, nil
 }
 
-type MetricsPayload struct {
-	DeviceID  string             `json:"device_id"`
+// MetricsPushPayload is sent to the server - device_id is in the URL path
+type MetricsPushPayload struct {
 	Timestamp time.Time          `json:"timestamp"`
 	Metrics   *collector.Metrics `json:"metrics"`
 }
@@ -126,8 +126,7 @@ type MetricsResponse struct {
 }
 
 func (c *Client) PushMetrics(deviceID string, timestamp time.Time, metrics *collector.Metrics) error {
-	payload := MetricsPayload{
-		DeviceID:  deviceID,
+	payload := MetricsPushPayload{
 		Timestamp: timestamp,
 		Metrics:   metrics,
 	}
@@ -139,7 +138,7 @@ func (c *Client) PushMetrics(deviceID string, timestamp time.Time, metrics *coll
 
 	httpReq, err := http.NewRequest(
 		"POST",
-		c.baseURL+"/api/metrics",
+		fmt.Sprintf("%s/api/devices/%s/metrics", c.baseURL, deviceID),
 		bytes.NewReader(body),
 	)
 	if err != nil {

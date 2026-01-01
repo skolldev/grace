@@ -1,5 +1,8 @@
 <div class="flex flex-col h-screen p-4 gap-4">
-    <p-menubar [model]="items" class="flex-shrink-0">
+    <p-menubar [model]="items">
+        <ng-template pTemplate="start">
+            <span class="text-2xl font-bold font-mono">Grace</span>
+        </ng-template>
         <ng-template pTemplate="item" let-item>
             <a [routerLink]="item.routerLink">
                 <i [class]="item.icon"></i>

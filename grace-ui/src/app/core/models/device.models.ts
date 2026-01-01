@@ -21,6 +21,6 @@ export interface Device {
   last_seen_at: string;
 }
 
-export interface DeviceWithMetrics extends Device {
+export interface DeviceSummary extends Device {
   latest_metrics: Record<string, unknown> | null;
 }

@@ -33,7 +33,7 @@ app.add_middleware(
 
 app.include_router(devices.router, prefix="/api/devices", tags=["devices"])
 app.include_router(sensors.router, prefix="/api/devices", tags=["sensors"])
-app.include_router(metrics.router, prefix="/api/metrics", tags=["metrics"])
+app.include_router(metrics.router, prefix="/api/devices", tags=["metrics"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(logs.router, prefix="/api/logs", tags=["logs"])
 

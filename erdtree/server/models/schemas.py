@@ -17,8 +17,9 @@ class RegisterResponse(BaseModel):
 
 
 # Metrics
-class MetricsPayload(BaseModel):
-    device_id: str
+class MetricsPushPayload(BaseModel):
+    """Payload for pushing metrics - device_id comes from URL path."""
+
     timestamp: Optional[datetime] = None
     metrics: dict
 
@@ -38,7 +39,9 @@ class DeviceResponse(BaseModel):
     last_seen_at: datetime
 
 
-class DeviceWithMetrics(DeviceResponse):
+class DeviceSummary(DeviceResponse):
+    """Device info with latest metrics included."""
+
     latest_metrics: Optional[dict] = None
 
 

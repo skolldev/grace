@@ -4,7 +4,7 @@ export type {
 
 export type {
   Device,
-  DeviceWithMetrics,
+  DeviceSummary,
   RegisterRequest,
   RegisterResponse
 } from './device.models';
@@ -14,7 +14,7 @@ export type { Log } from './log.models';
 
 export type {
   Metric,
-  MetricsPayload,
+  MetricsPushPayload,
   MetricsResponse
 } from './metric.models';
 

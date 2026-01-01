@@ -118,12 +118,13 @@ Ruff configuration is in `pyproject.toml` with a line length of 88 and Python 3.
 | ---------------------------------- | ---------- | ---------------------------------------- |
 | `/health`                          | GET        | Health check                             |
 | `/api/devices/register`            | POST       | Register a new device                    |
-| `/api/devices`                     | GET        | List all devices                         |
+| `/api/devices`                     | GET        | List all devices (includes latest metrics) |
 | `/api/devices/{id}`                | GET/DELETE | Get or delete a device                   |
-| `/api/devices/{device_id}/sensors` | GET        | Get device sensors                       |
-| `/api/metrics`                     | POST       | Push metrics from device                 |
-| `/api/metrics/{device_id}`         | GET        | Retrieve device metrics                  |
+| `/api/devices/{id}/metrics`        | POST       | Push metrics from device                 |
+| `/api/devices/{id}/metrics`        | GET        | Retrieve historical metrics              |
+| `/api/devices/{id}/sensors`        | GET/POST   | Get or report device sensors             |
+| `/api/devices/{id}/sensors/config` | GET/PUT    | Get or update sensor config              |
 | `/api/admin/key`                   | GET        | Retrieve API key for agent configuration |
-| `/api/logs/`                       | GET        | Retrieve application logs                |
+| `/api/logs`                        | GET        | Retrieve application logs                |
 
 Query parameters for metrics retrieval: `start`, `end`, `limit`

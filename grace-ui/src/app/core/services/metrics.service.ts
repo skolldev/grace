@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Metric, MetricsPayload, MetricsResponse } from '../models';
+import { Metric, MetricsPushPayload, MetricsResponse } from '../models';
 
 export interface MetricsQueryParams {
   start?: string;
@@ -15,10 +15,10 @@ export interface MetricsQueryParams {
 })
 export class MetricsService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = `${environment.apiUrl}/metrics`;
+  private readonly baseUrl = `${environment.apiUrl}/devices`;
 
-  push(payload: MetricsPayload): Observable<MetricsResponse> {
-    return this.http.post<MetricsResponse>(this.baseUrl, payload);
+  push(deviceId: string, payload: MetricsPushPayload): Observable<MetricsResponse> {
+    return this.http.post<MetricsResponse>(`${this.baseUrl}/${deviceId}/metrics`, payload);
   }
 
   getByDeviceId(deviceId: string, params?: MetricsQueryParams): Observable<Metric[]> {
@@ -34,6 +34,6 @@ export class MetricsService {
       httpParams = httpParams.set('limit', params.limit.toString());
     }
 
-    return this.http.get<Metric[]>(`${this.baseUrl}/${deviceId}`, { params: httpParams });
+    return this.http.get<Metric[]>(`${this.baseUrl}/${deviceId}/metrics`, { params: httpParams });
   }
 }

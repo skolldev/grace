@@ -3,8 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
-  Device,
-  DeviceWithMetrics,
+  DeviceSummary,
   RegisterRequest,
   RegisterResponse,
 } from '../models';
@@ -20,12 +19,12 @@ export class DevicesService {
     return this.http.post<RegisterResponse>(`${this.baseUrl}/register`, request);
   }
 
-  getAll(): Observable<Device[]> {
-    return this.http.get<Device[]>(this.baseUrl);
+  getAll(): Observable<DeviceSummary[]> {
+    return this.http.get<DeviceSummary[]>(this.baseUrl);
   }
 
-  getById(id: string): Observable<DeviceWithMetrics> {
-    return this.http.get<DeviceWithMetrics>(`${this.baseUrl}/${id}`);
+  getById(id: string): Observable<DeviceSummary> {
+    return this.http.get<DeviceSummary>(`${this.baseUrl}/${id}`);
   }
 
   delete(id: string): Observable<void> {

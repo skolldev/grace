@@ -85,7 +85,9 @@ func TestAgent_New(t *testing.T) {
 func TestAgent_CollectAndReport_Success(t *testing.T) {
 	var requestCount int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/metrics" {
+		// Match new path pattern: /api/devices/{device_id}/metrics
+		if r.Method == http.MethodPost && len(r.URL.Path) > len("/api/devices/") &&
+			r.URL.Path[len(r.URL.Path)-8:] == "/metrics" {
 			atomic.AddInt32(&requestCount, 1)
 			w.WriteHeader(http.StatusOK)
 		}

@@ -8,8 +8,7 @@ from server.models.models import Device, DeviceSensor, Metric
 from server.models.schemas import (
     RegisterRequest,
     RegisterResponse,
-    DeviceResponse,
-    DeviceWithMetrics,
+    DeviceSummary,
 )
 
 router = APIRouter()
@@ -36,13 +35,30 @@ def register_device(
     )
 
 
-@router.get("", response_model=list[DeviceResponse])
+@router.get("", response_model=list[DeviceSummary])
 def list_devices(session: Session = Depends(get_session)):
     devices = session.exec(select(Device)).all()
-    return devices
+
+    result = []
+    for device in devices:
+        latest = session.exec(
+            select(Metric)
+            .where(Metric.device_id == device.id)
+            .order_by(Metric.timestamp.desc())
+            .limit(1)
+        ).first()
+
+        result.append(
+            DeviceSummary(
+                **device.model_dump(),
+                latest_metrics=latest.data if latest else None,
+            )
+        )
+
+    return result
 
 
-@router.get("/{device_id}", response_model=DeviceWithMetrics)
+@router.get("/{device_id}", response_model=DeviceSummary)
 def get_device(device_id: str, session: Session = Depends(get_session)):
     device = session.get(Device, device_id)
     if not device:
@@ -56,7 +72,7 @@ def get_device(device_id: str, session: Session = Depends(get_session)):
         .limit(1)
     ).first()
 
-    return DeviceWithMetrics(
+    return DeviceSummary(
         **device.model_dump(),
         latest_metrics=latest.data if latest else None,
     )

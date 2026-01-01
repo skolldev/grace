@@ -123,10 +123,17 @@ func TestClient_Register_ConnectionFailure(t *testing.T) {
 }
 
 func TestClient_PushMetrics_Success(t *testing.T) {
-	var receivedPayload MetricsPayload
+	var receivedPayload MetricsPushPayload
+	var receivedDeviceID string
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/metrics" {
+		// Extract device ID from path: /api/devices/{device_id}/metrics
+		expectedPrefix := "/api/devices/"
+		expectedSuffix := "/metrics"
+		path := r.URL.Path
+		if len(path) > len(expectedPrefix)+len(expectedSuffix) {
+			receivedDeviceID = path[len(expectedPrefix) : len(path)-len(expectedSuffix)]
+		} else {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		if r.Method != http.MethodPost {
@@ -154,8 +161,8 @@ func TestClient_PushMetrics_Success(t *testing.T) {
 		t.Fatalf("PushMetrics failed: %v", err)
 	}
 
-	if receivedPayload.DeviceID != deviceID {
-		t.Errorf("DeviceID = %s, want %s", receivedPayload.DeviceID, deviceID)
+	if receivedDeviceID != deviceID {
+		t.Errorf("DeviceID in URL = %s, want %s", receivedDeviceID, deviceID)
 	}
 	if receivedPayload.Metrics.CPU.Percent != metrics.CPU.Percent {
 		t.Errorf("CPU.Percent = %f, want %f", receivedPayload.Metrics.CPU.Percent, metrics.CPU.Percent)

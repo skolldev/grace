@@ -20,6 +20,11 @@ export class Layout {
       routerLink: '/',
     },
     {
+      label: 'Devices',
+      icon: 'pi pi-desktop',
+      routerLink: '/devices',
+    },
+    {
       label: 'Logs',
       icon: 'pi pi-list',
       routerLink: '/logs',

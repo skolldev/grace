@@ -80,6 +80,34 @@ def test_list_devices(client: TestClient, auth_headers: dict):
     devices = response.json()
     assert len(devices) == 1
     assert devices[0]["hostname"] == "test-host"
+    assert "latest_metrics" in devices[0]
+    assert devices[0]["latest_metrics"] is None
+
+
+def test_list_devices_with_metrics(client: TestClient, auth_headers: dict):
+    """Test that list endpoint includes latest metrics for each device."""
+    # Register device
+    reg_response = client.post(
+        "/api/devices/register",
+        headers=auth_headers,
+        json={"hostname": "test-host", "os": "linux", "arch": "amd64"},
+    )
+    device_id = reg_response.json()["device_id"]
+
+    # Push metrics
+    client.post(
+        f"/api/devices/{device_id}/metrics",
+        headers=auth_headers,
+        json={"metrics": {"cpu": 55.5, "memory": 80.0}},
+    )
+
+    # Verify list includes latest metrics
+    response = client.get("/api/devices")
+    assert response.status_code == 200
+    devices = response.json()
+    assert len(devices) == 1
+    assert devices[0]["latest_metrics"] is not None
+    assert devices[0]["latest_metrics"]["cpu"] == 55.5
 
 
 def test_get_device(client: TestClient, auth_headers: dict):
