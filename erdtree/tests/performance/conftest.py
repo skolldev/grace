@@ -20,11 +20,7 @@ from server.core import auth
 from server.core.database import get_session, set_engine_override
 from server.main import app
 from server.models.models import (
-    Device,
-    DeviceSensor,
-    Log,
     Metric,
-    Setting,
 )  # noqa: F401
 
 
