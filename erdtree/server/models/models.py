@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Optional
 import uuid
-from sqlmodel import SQLModel, Field, JSON, Column
+from sqlmodel import SQLModel, Field, JSON, Column, Index
 
 
 def utc_now() -> datetime:
@@ -35,6 +35,8 @@ class Metric(SQLModel, table=True):
     device_id: str = Field(foreign_key="devices.id", index=True)
     timestamp: datetime = Field(default_factory=utc_now, index=True)
     data: dict = Field(sa_column=Column(JSON))
+
+    __table_args__ = (Index("idx_metric_device_timestamp", "device_id", "timestamp"),)
 
 
 class Log(SQLModel, table=True):

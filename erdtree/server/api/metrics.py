@@ -42,74 +42,74 @@ def get_aggregated_metrics(
     """Fetch metrics and aggregate into time buckets."""
     bucket_seconds = RESOLUTION_SECONDS[resolution]
 
-    # SQLite: unixepoch() for timestamp conversion, integer division for bucketing
-    # Use unixepoch() for all comparisons to handle datetime format differences
-    query = text("""
+    # Convert to unix timestamps for direct comparison
+    start_ts = int(start.timestamp())
+    end_ts = int(end.timestamp())
+
+    # Do aggregation in SQL - returns only ~100-300 rows instead of 60k+
+    query = text(
+        """
         SELECT
             (unixepoch(timestamp) / :bucket) * :bucket as bucket_ts,
-            json_extract(data, '$.cpu.percent') as cpu_percent,
-            json_extract(data, '$.ram.percent') as ram_percent,
-            json_extract(data, '$.network.rx_bytes_per_sec') as net_rx,
-            json_extract(data, '$.network.tx_bytes_per_sec') as net_tx
+            AVG(json_extract(data, '$.cpu.percent')) as cpu_avg,
+            MIN(json_extract(data, '$.cpu.percent')) as cpu_min,
+            MAX(json_extract(data, '$.cpu.percent')) as cpu_max,
+            AVG(json_extract(data, '$.ram.percent')) as ram_avg,
+            MIN(json_extract(data, '$.ram.percent')) as ram_min,
+            MAX(json_extract(data, '$.ram.percent')) as ram_max,
+            AVG(json_extract(data, '$.network.rx_bytes_per_sec')) as net_rx_avg,
+            MIN(json_extract(data, '$.network.rx_bytes_per_sec')) as net_rx_min,
+            MAX(json_extract(data, '$.network.rx_bytes_per_sec')) as net_rx_max,
+            AVG(json_extract(data, '$.network.tx_bytes_per_sec')) as net_tx_avg,
+            MIN(json_extract(data, '$.network.tx_bytes_per_sec')) as net_tx_min,
+            MAX(json_extract(data, '$.network.tx_bytes_per_sec')) as net_tx_max
         FROM metrics
         WHERE device_id = :device_id
-          AND unixepoch(timestamp) >= unixepoch(:start)
-          AND unixepoch(timestamp) < unixepoch(:end)
-        ORDER BY timestamp
-    """)
+          AND timestamp >= datetime(:start_ts, 'unixepoch')
+          AND timestamp < datetime(:end_ts, 'unixepoch')
+        GROUP BY bucket_ts
+        ORDER BY bucket_ts
+    """
+    )
 
     result = session.execute(
         query,
         {
             "bucket": bucket_seconds,
             "device_id": device_id,
-            "start": start.isoformat(),
-            "end": end.isoformat(),
+            "start_ts": start_ts,
+            "end_ts": end_ts,
         },
     )
     rows = result.fetchall()
 
-    # Group by bucket and compute aggregates in Python
-    buckets: dict[int, dict[str, list]] = {}
-    for row in rows:
-        bucket_ts = row.bucket_ts
-        if bucket_ts not in buckets:
-            buckets[bucket_ts] = {
-                "cpu_percent": [],
-                "ram_percent": [],
-                "net_rx": [],
-                "net_tx": [],
-            }
-        if row.cpu_percent is not None:
-            buckets[bucket_ts]["cpu_percent"].append(row.cpu_percent)
-        if row.ram_percent is not None:
-            buckets[bucket_ts]["ram_percent"].append(row.ram_percent)
-        if row.net_rx is not None:
-            buckets[bucket_ts]["net_rx"].append(row.net_rx)
-        if row.net_tx is not None:
-            buckets[bucket_ts]["net_tx"].append(row.net_tx)
-
-    # Build response
-    aggregated = []
-    for bucket_ts in sorted(buckets.keys()):
-        b = buckets[bucket_ts]
-        aggregated.append(
-            {
-                "timestamp": datetime.fromtimestamp(bucket_ts, tz=timezone.utc)
-                .isoformat()
-                .replace("+00:00", "Z"),
-                "data": {
-                    "cpu": {"percent": aggregate(b["cpu_percent"])},
-                    "ram": {"percent": aggregate(b["ram_percent"])},
-                    "network": {
-                        "rx_sec": aggregate(b["net_rx"]),
-                        "tx_sec": aggregate(b["net_tx"]),
-                    },
+    # Build response - now just iterating ~100-300 rows
+    return [
+        {
+            "timestamp": datetime.fromtimestamp(row.bucket_ts, tz=timezone.utc)
+            .isoformat()
+            .replace("+00:00", "Z"),
+            "data": {
+                "cpu": {"percent": _agg(row.cpu_avg, row.cpu_min, row.cpu_max)},
+                "ram": {"percent": _agg(row.ram_avg, row.ram_min, row.ram_max)},
+                "network": {
+                    "rx_sec": _agg(row.net_rx_avg, row.net_rx_min, row.net_rx_max),
+                    "tx_sec": _agg(row.net_tx_avg, row.net_tx_min, row.net_tx_max),
                 },
-            }
-        )
+            },
+        }
+        for row in rows
+    ]
 
-    return aggregated
+
+def _agg(avg: float | None, min_: float | None, max_: float | None) -> dict | None:
+    if avg is None:
+        return None
+    return {
+        "avg": round(avg, 2),
+        "min": round(min_, 2),
+        "max": round(max_, 2),
+    }
 
 
 @router.post("/{device_id}/metrics", response_model=MetricsResponse)
