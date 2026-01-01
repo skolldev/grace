@@ -5,6 +5,7 @@ export type {
 export type {
   Device,
   DeviceSummary,
+  LatestMetric,
   RegisterRequest,
   RegisterResponse
 } from './device.models';
@@ -13,9 +14,12 @@ export type {
 export type { Log } from './log.models';
 
 export type {
+  CpuMetrics,
+  DefaultMetricData,
+  DiskMetrics,
   Metric,
-  MetricsPushPayload,
-  MetricsResponse
+  NetworkMetrics,
+  RamMetrics
 } from './metric.models';
 
 export type {

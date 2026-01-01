@@ -39,10 +39,17 @@ class DeviceResponse(BaseModel):
     last_seen_at: datetime
 
 
+class LatestMetric(BaseModel):
+    """Latest metric snapshot with timestamp."""
+
+    timestamp: datetime
+    data: dict
+
+
 class DeviceSummary(DeviceResponse):
     """Device info with latest metrics included."""
 
-    latest_metrics: Optional[dict] = None
+    latest_metrics: Optional[LatestMetric] = None
 
 
 # Admin

@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Metric, MetricsPushPayload, MetricsResponse } from '../models';
+import { Metric } from '../models';
 
 export interface MetricsQueryParams {
   start?: string;
@@ -16,10 +16,6 @@ export interface MetricsQueryParams {
 export class MetricsService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiUrl}/devices`;
-
-  push(deviceId: string, payload: MetricsPushPayload): Observable<MetricsResponse> {
-    return this.http.post<MetricsResponse>(`${this.baseUrl}/${deviceId}/metrics`, payload);
-  }
 
   getByDeviceId(deviceId: string, params?: MetricsQueryParams): Observable<Metric[]> {
     let httpParams = new HttpParams();

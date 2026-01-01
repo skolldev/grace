@@ -9,6 +9,7 @@ from server.models.schemas import (
     RegisterRequest,
     RegisterResponse,
     DeviceSummary,
+    LatestMetric,
 )
 
 router = APIRouter()
@@ -51,7 +52,9 @@ def list_devices(session: Session = Depends(get_session)):
         result.append(
             DeviceSummary(
                 **device.model_dump(),
-                latest_metrics=latest.data if latest else None,
+                latest_metrics=LatestMetric(timestamp=latest.timestamp, data=latest.data)
+                if latest
+                else None,
             )
         )
 
@@ -74,7 +77,9 @@ def get_device(device_id: str, session: Session = Depends(get_session)):
 
     return DeviceSummary(
         **device.model_dump(),
-        latest_metrics=latest.data if latest else None,
+        latest_metrics=LatestMetric(timestamp=latest.timestamp, data=latest.data)
+        if latest
+        else None,
     )
 
 

@@ -107,7 +107,8 @@ def test_list_devices_with_metrics(client: TestClient, auth_headers: dict):
     devices = response.json()
     assert len(devices) == 1
     assert devices[0]["latest_metrics"] is not None
-    assert devices[0]["latest_metrics"]["cpu"] == 55.5
+    assert "timestamp" in devices[0]["latest_metrics"]
+    assert devices[0]["latest_metrics"]["data"]["cpu"] == 55.5
 
 
 def test_get_device(client: TestClient, auth_headers: dict):

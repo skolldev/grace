@@ -1,3 +1,5 @@
+import { DefaultMetricData } from './metric.models';
+
 export interface RegisterRequest {
   token: string;
   hostname: string;
@@ -21,6 +23,11 @@ export interface Device {
   last_seen_at: string;
 }
 
+export interface LatestMetric {
+  timestamp: string;
+  data: DefaultMetricData;
+}
+
 export interface DeviceSummary extends Device {
-  latest_metrics: Record<string, unknown> | null;
+  latest_metrics: LatestMetric | null;
 }

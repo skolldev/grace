@@ -69,12 +69,17 @@ type DiskMetrics struct {
 }
 
 type NetworkMetrics struct {
-	RxBytes uint64 `json:"rx_bytes"`
-	TxBytes uint64 `json:"tx_bytes"`
+	RxBytes       uint64  `json:"rx_bytes"`
+	TxBytes       uint64  `json:"tx_bytes"`
+	RxBytesPerSec float64 `json:"rx_bytes_per_sec"`
+	TxBytesPerSec float64 `json:"tx_bytes_per_sec"`
 }
 
 type Collector struct {
-	logger *zap.Logger
+	logger      *zap.Logger
+	lastNetRx   uint64
+	lastNetTx   uint64
+	lastNetTime time.Time
 }
 
 func New(logger *zap.Logger) *Collector {
@@ -135,6 +140,18 @@ func (c *Collector) Collect() (*Metrics, error) {
 	} else if len(netIO) > 0 {
 		m.Network.RxBytes = netIO[0].BytesRecv
 		m.Network.TxBytes = netIO[0].BytesSent
+
+		// Calculate bytes per second if we have a previous sample
+		if !c.lastNetTime.IsZero() {
+			elapsed := time.Since(c.lastNetTime).Seconds()
+			if elapsed > 0 {
+				m.Network.RxBytesPerSec = float64(netIO[0].BytesRecv-c.lastNetRx) / elapsed
+				m.Network.TxBytesPerSec = float64(netIO[0].BytesSent-c.lastNetTx) / elapsed
+			}
+		}
+		c.lastNetRx = netIO[0].BytesRecv
+		c.lastNetTx = netIO[0].BytesSent
+		c.lastNetTime = time.Now()
 	}
 
 	// Uptime

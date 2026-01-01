@@ -1,15 +1,40 @@
-export interface MetricsPushPayload {
-  timestamp?: string;
-  metrics: Record<string, unknown>;
+export interface CpuMetrics {
+  percent: number;
+  cores: number;
 }
 
-export interface MetricsResponse {
-  status: string;
+export interface RamMetrics {
+  total_gb: number;
+  used_gb: number;
+  percent: number;
+}
+
+export interface DiskMetrics {
+  mount: string;
+  total_gb: number;
+  used_gb: number;
+  percent: number;
+}
+
+export interface NetworkMetrics {
+  rx_bytes: number;
+  tx_bytes: number;
+  rx_bytes_per_sec: number;
+  tx_bytes_per_sec: number;
+}
+
+export interface DefaultMetricData {
+  cpu: CpuMetrics;
+  ram: RamMetrics;
+  disk: DiskMetrics[];
+  network: NetworkMetrics;
+  uptime_seconds: number;
+  sensors?: Record<string, number>;
 }
 
 export interface Metric {
   id: number;
   device_id: string;
   timestamp: string;
-  data: Record<string, unknown>;
+  data: DefaultMetricData;
 }

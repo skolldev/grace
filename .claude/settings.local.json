@@ -20,7 +20,9 @@
       "mcp__primeng__get_component_tokens",
       "mcp__primeng__search_components",
       "mcp__primeng__find_by_prop",
-      "mcp__primeng__search_all"
+      "mcp__primeng__search_all",
+      "mcp__primeng__get_usage_example",
+      "Bash(pnpm build:*)"
     ]
   }
 }
