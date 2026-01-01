@@ -19,7 +19,14 @@ def test_push_metrics(client: TestClient, device_id: str, auth_headers: dict):
         f"/api/devices/{device_id}/metrics",
         headers=auth_headers,
         json={
-            "metrics": {"cpu": 45.2, "memory": 78.5, "disk": 60.0},
+            "metrics": {
+                "cpu": {"percent": 45.2},
+                "ram": {"percent": 78.5, "used_gb": 8, "total_gb": 16},
+                "disk": [
+                    {"mount": "/", "percent": 60.0, "used_gb": 100, "total_gb": 200}
+                ],
+                "network": {"rx_bytes_per_sec": 1000, "tx_bytes_per_sec": 500},
+            },
         },
     )
     assert response.status_code == 200
@@ -31,7 +38,7 @@ def test_push_metrics_no_auth(client: TestClient, device_id: str):
     response = client.post(
         f"/api/devices/{device_id}/metrics",
         json={
-            "metrics": {"cpu": 45.2},
+            "metrics": {"cpu": {"percent": 45.2}},
         },
     )
     assert response.status_code == 401
@@ -42,7 +49,7 @@ def test_push_metrics_device_not_found(client: TestClient, auth_headers: dict):
         "/api/devices/nonexistent-id/metrics",
         headers=auth_headers,
         json={
-            "metrics": {"cpu": 45.2},
+            "metrics": {"cpu": {"percent": 45.2}},
         },
     )
     assert response.status_code == 404

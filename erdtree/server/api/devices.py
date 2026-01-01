@@ -15,6 +15,23 @@ from server.models.schemas import (
 router = APIRouter()
 
 
+def _metric_to_data(metric: Metric) -> dict:
+    """Reconstruct the nested data dict from metric columns."""
+    return {
+        "cpu": {"percent": metric.cpu_percent},
+        "ram": {
+            "percent": metric.ram_percent,
+            "used_gb": metric.ram_used_gb,
+            "total_gb": metric.ram_total_gb,
+        },
+        "disk": metric.disk,  # Array stored as-is
+        "network": {
+            "rx_bytes_per_sec": metric.net_rx_bytes_sec,
+            "tx_bytes_per_sec": metric.net_tx_bytes_sec,
+        },
+    }
+
+
 @router.post("/register", response_model=RegisterResponse)
 def register_device(
     request: RegisterRequest,
@@ -53,7 +70,7 @@ def list_devices(session: Session = Depends(get_session)):
             DeviceSummary(
                 **device.model_dump(),
                 latest_metrics=LatestMetric(
-                    timestamp=latest.timestamp, data=latest.data
+                    timestamp=latest.timestamp, data=_metric_to_data(latest)
                 )
                 if latest
                 else None,
@@ -79,7 +96,9 @@ def get_device(device_id: str, session: Session = Depends(get_session)):
 
     return DeviceSummary(
         **device.model_dump(),
-        latest_metrics=LatestMetric(timestamp=latest.timestamp, data=latest.data)
+        latest_metrics=LatestMetric(
+            timestamp=latest.timestamp, data=_metric_to_data(latest)
+        )
         if latest
         else None,
     )

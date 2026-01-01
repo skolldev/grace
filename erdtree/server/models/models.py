@@ -34,7 +34,21 @@ class Metric(SQLModel, table=True):
     id: int = Field(default=None, primary_key=True)
     device_id: str = Field(foreign_key="devices.id", index=True)
     timestamp: datetime = Field(default_factory=utc_now, index=True)
-    data: dict = Field(sa_column=Column(JSON))
+
+    # CPU
+    cpu_percent: Optional[float] = None
+
+    # RAM
+    ram_percent: Optional[float] = None
+    ram_used_gb: Optional[float] = None
+    ram_total_gb: Optional[float] = None
+
+    # Disk (keep as JSON - agent sends array of partitions)
+    disk: Optional[list] = Field(default=None, sa_column=Column(JSON))
+
+    # Network
+    net_rx_bytes_sec: Optional[int] = None
+    net_tx_bytes_sec: Optional[int] = None
 
     __table_args__ = (Index("idx_metric_device_timestamp", "device_id", "timestamp"),)
 

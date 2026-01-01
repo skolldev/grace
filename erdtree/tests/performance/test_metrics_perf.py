@@ -111,9 +111,9 @@ class TestSingleRequestLatency:
         print(f"  Range:  {results['min']:.1f}ms - {results['max']:.1f}ms")
 
         # Assert within acceptable limits
-        assert results["p95"] <= scenario["max_ms"], (
-            f"P95 latency {results['p95']:.1f}ms exceeds max {scenario['max_ms']}ms"
-        )
+        assert (
+            results["p95"] <= scenario["max_ms"]
+        ), f"P95 latency {results['p95']:.1f}ms exceeds max {scenario['max_ms']}ms"
 
 
 class TestColdVsWarm:
@@ -264,6 +264,6 @@ class TestDataPoints:
 
         print(f"\n{scenario['name']}: {actual} points (expected ~{expected})")
 
-        assert abs(actual - expected) <= tolerance, (
-            f"Expected ~{expected} data points, got {actual}"
-        )
+        assert (
+            abs(actual - expected) <= tolerance
+        ), f"Expected ~{expected} data points, got {actual}"

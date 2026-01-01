@@ -29,7 +29,8 @@
       "Bash(C:/Users/guita/Documents/repos/grace/erdtree/.venv/Scripts/ruff format:*)",
       "Bash(pnpm test:*)",
       "Bash(C:/Users/guita/Documents/repos/grace/erdtree/.venv/Scripts/pytest C:/Users/guita/Documents/repos/grace/erdtree/tests/performance/ --collect-only)",
-      "Bash(C:/Users/guita/Documents/repos/grace/erdtree/.venv/Scripts/pytest:*)"
+      "Bash(C:/Users/guita/Documents/repos/grace/erdtree/.venv/Scripts/pytest:*)",
+      "Bash(.venv/Scripts/pytest tests/test_metrics.py tests/test_devices.py -v)"
     ]
   }
 }

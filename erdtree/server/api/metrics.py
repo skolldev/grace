@@ -42,31 +42,32 @@ def get_aggregated_metrics(
     """Fetch metrics and aggregate into time buckets."""
     bucket_seconds = RESOLUTION_SECONDS[resolution]
 
-    # Convert to unix timestamps for direct comparison
-    start_ts = int(start.timestamp())
-    end_ts = int(end.timestamp())
+    # Format timestamps as ISO strings for consistent comparison
+    # (avoids timezone issues with Unix timestamp conversion)
+    start_str = start.strftime("%Y-%m-%d %H:%M:%S")
+    end_str = end.strftime("%Y-%m-%d %H:%M:%S")
 
-    # Do aggregation in SQL - returns only ~100-300 rows instead of 60k+
+    # Do aggregation in SQL - direct column access (no JSON parsing)
     query = text(
         """
         SELECT
             (unixepoch(timestamp) / :bucket) * :bucket as bucket_ts,
-            AVG(json_extract(data, '$.cpu.percent')) as cpu_avg,
-            MIN(json_extract(data, '$.cpu.percent')) as cpu_min,
-            MAX(json_extract(data, '$.cpu.percent')) as cpu_max,
-            AVG(json_extract(data, '$.ram.percent')) as ram_avg,
-            MIN(json_extract(data, '$.ram.percent')) as ram_min,
-            MAX(json_extract(data, '$.ram.percent')) as ram_max,
-            AVG(json_extract(data, '$.network.rx_bytes_per_sec')) as net_rx_avg,
-            MIN(json_extract(data, '$.network.rx_bytes_per_sec')) as net_rx_min,
-            MAX(json_extract(data, '$.network.rx_bytes_per_sec')) as net_rx_max,
-            AVG(json_extract(data, '$.network.tx_bytes_per_sec')) as net_tx_avg,
-            MIN(json_extract(data, '$.network.tx_bytes_per_sec')) as net_tx_min,
-            MAX(json_extract(data, '$.network.tx_bytes_per_sec')) as net_tx_max
+            AVG(cpu_percent) as cpu_avg,
+            MIN(cpu_percent) as cpu_min,
+            MAX(cpu_percent) as cpu_max,
+            AVG(ram_percent) as ram_avg,
+            MIN(ram_percent) as ram_min,
+            MAX(ram_percent) as ram_max,
+            AVG(net_rx_bytes_sec) as net_rx_avg,
+            MIN(net_rx_bytes_sec) as net_rx_min,
+            MAX(net_rx_bytes_sec) as net_rx_max,
+            AVG(net_tx_bytes_sec) as net_tx_avg,
+            MIN(net_tx_bytes_sec) as net_tx_min,
+            MAX(net_tx_bytes_sec) as net_tx_max
         FROM metrics
         WHERE device_id = :device_id
-          AND timestamp >= datetime(:start_ts, 'unixepoch')
-          AND timestamp < datetime(:end_ts, 'unixepoch')
+          AND timestamp >= :start_ts
+          AND timestamp < :end_ts
         GROUP BY bucket_ts
         ORDER BY bucket_ts
     """
@@ -77,8 +78,8 @@ def get_aggregated_metrics(
         {
             "bucket": bucket_seconds,
             "device_id": device_id,
-            "start_ts": start_ts,
-            "end_ts": end_ts,
+            "start_ts": start_str,
+            "end_ts": end_str,
         },
     )
     rows = result.fetchall()
@@ -128,11 +129,18 @@ def push_metrics(
     device.last_seen_at = utc_now()
     session.add(device)
 
-    # Store metrics
+    # Extract metrics from payload and store as columns
+    m = payload.metrics
     metric = Metric(
         device_id=device_id,
         timestamp=payload.timestamp or utc_now(),
-        data=payload.metrics,
+        cpu_percent=m.get("cpu", {}).get("percent"),
+        ram_percent=m.get("ram", {}).get("percent"),
+        ram_used_gb=m.get("ram", {}).get("used_gb"),
+        ram_total_gb=m.get("ram", {}).get("total_gb"),
+        disk=m.get("disk"),  # Store array as-is
+        net_rx_bytes_sec=m.get("network", {}).get("rx_bytes_per_sec"),
+        net_tx_bytes_sec=m.get("network", {}).get("tx_bytes_per_sec"),
     )
     session.add(metric)
     session.commit()

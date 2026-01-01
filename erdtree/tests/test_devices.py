@@ -98,7 +98,13 @@ def test_list_devices_with_metrics(client: TestClient, auth_headers: dict):
     client.post(
         f"/api/devices/{device_id}/metrics",
         headers=auth_headers,
-        json={"metrics": {"cpu": 55.5, "memory": 80.0}},
+        json={
+            "metrics": {
+                "cpu": {"percent": 55.5},
+                "ram": {"percent": 80.0, "used_gb": 8, "total_gb": 16},
+                "network": {"rx_bytes_per_sec": 1000, "tx_bytes_per_sec": 500},
+            }
+        },
     )
 
     # Verify list includes latest metrics
@@ -108,7 +114,7 @@ def test_list_devices_with_metrics(client: TestClient, auth_headers: dict):
     assert len(devices) == 1
     assert devices[0]["latest_metrics"] is not None
     assert "timestamp" in devices[0]["latest_metrics"]
-    assert devices[0]["latest_metrics"]["data"]["cpu"] == 55.5
+    assert devices[0]["latest_metrics"]["data"]["cpu"]["percent"] == 55.5
 
 
 def test_get_device(client: TestClient, auth_headers: dict):

@@ -51,18 +51,20 @@ def generate_test_metrics(
         metric = Metric(
             device_id=device_id,
             timestamp=current,
-            data={
-                "cpu": {"percent": random.uniform(5, 95), "cores": 4},
-                "ram": {
-                    "percent": random.uniform(30, 80),
-                    "total_gb": 16,
-                    "used_gb": random.uniform(5, 13),
-                },
-                "network": {
-                    "rx_bytes_per_sec": random.randint(100, 10000),
-                    "tx_bytes_per_sec": random.randint(100, 5000),
-                },
-            },
+            cpu_percent=random.uniform(5, 95),
+            ram_percent=random.uniform(30, 80),
+            ram_used_gb=random.uniform(5, 13),
+            ram_total_gb=16,
+            disk=[
+                {
+                    "mount": "/",
+                    "percent": random.uniform(10, 90),
+                    "used_gb": random.uniform(50, 450),
+                    "total_gb": 500,
+                }
+            ],
+            net_rx_bytes_sec=random.randint(100, 10000),
+            net_tx_bytes_sec=random.randint(100, 5000),
         )
         batch.append(metric)
         row_count += 1
