@@ -166,18 +166,22 @@ def perf_session(perf_engine):
 
 
 @pytest.fixture(scope="module")
-def perf_client(perf_session):
+def perf_client(perf_engine):
     """Test client using the performance database."""
     auth.reset_api_key_cache()
+    set_engine_override(perf_engine)
 
     def get_session_override():
-        return perf_session
+        # Create NEW session for each request (thread-safe)
+        with Session(perf_engine) as session:
+            yield session
 
     app.dependency_overrides[get_session] = get_session_override
     client = TestClient(app)
     yield client
     app.dependency_overrides.clear()
     auth.reset_api_key_cache()
+    set_engine_override(None)
 
 
 @pytest.fixture(scope="module")
