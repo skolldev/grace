@@ -52,7 +52,9 @@ def list_devices(session: Session = Depends(get_session)):
         result.append(
             DeviceSummary(
                 **device.model_dump(),
-                latest_metrics=LatestMetric(timestamp=latest.timestamp, data=latest.data)
+                latest_metrics=LatestMetric(
+                    timestamp=latest.timestamp, data=latest.data
+                )
                 if latest
                 else None,
             )
