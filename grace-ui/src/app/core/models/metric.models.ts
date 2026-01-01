@@ -38,3 +38,24 @@ export interface Metric {
   timestamp: string;
   data: DefaultMetricData;
 }
+
+// Aggregated metrics types (for time-bucketed queries)
+export interface AggregateValue {
+  avg: number;
+  min: number;
+  max: number;
+}
+
+export interface AggregatedMetricData {
+  cpu: { percent: AggregateValue | null };
+  ram: { percent: AggregateValue | null };
+  network: {
+    rx_sec: AggregateValue | null;
+    tx_sec: AggregateValue | null;
+  };
+}
+
+export interface AggregatedMetric {
+  timestamp: string;
+  data: AggregatedMetricData;
+}

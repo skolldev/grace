@@ -2,12 +2,14 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Metric } from '../models';
+import { AggregatedMetric } from '../models';
 
-export interface MetricsQueryParams {
-  start?: string;
-  end?: string;
-  limit?: number;
+export type Resolution = '1m' | '5m' | '15m' | '1h' | '6h' | '1d';
+
+export interface AggregatedMetricsParams {
+  start: string;
+  end: string;
+  resolution: Resolution;
 }
 
 @Injectable({
@@ -17,19 +19,18 @@ export class MetricsService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiUrl}/devices`;
 
-  getByDeviceId(deviceId: string, params?: MetricsQueryParams): Observable<Metric[]> {
-    let httpParams = new HttpParams();
+  getByDeviceId(
+    deviceId: string,
+    params: AggregatedMetricsParams
+  ): Observable<AggregatedMetric[]> {
+    const httpParams = new HttpParams()
+      .set('start', params.start)
+      .set('end', params.end)
+      .set('resolution', params.resolution);
 
-    if (params?.start) {
-      httpParams = httpParams.set('start', params.start);
-    }
-    if (params?.end) {
-      httpParams = httpParams.set('end', params.end);
-    }
-    if (params?.limit !== undefined) {
-      httpParams = httpParams.set('limit', params.limit.toString());
-    }
-
-    return this.http.get<Metric[]>(`${this.baseUrl}/${deviceId}/metrics`, { params: httpParams });
+    return this.http.get<AggregatedMetric[]>(
+      `${this.baseUrl}/${deviceId}/metrics`,
+      { params: httpParams }
+    );
   }
 }

@@ -14,6 +14,9 @@ export type {
 export type { Log } from './log.models';
 
 export type {
+  AggregatedMetric,
+  AggregatedMetricData,
+  AggregateValue,
   CpuMetrics,
   DefaultMetricData,
   DiskMetrics,

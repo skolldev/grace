@@ -22,7 +22,14 @@
       "mcp__primeng__find_by_prop",
       "mcp__primeng__search_all",
       "mcp__primeng__get_usage_example",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "Bash(.venv/Scripts/pytest tests/test_metrics.py -v)",
+      "Bash(C:/Users/guita/Documents/repos/grace/erdtree/.venv/Scripts/pytest C:/Users/guita/Documents/repos/grace/erdtree/tests/test_metrics.py -v)",
+      "Bash(C:/Users/guita/Documents/repos/grace/erdtree/.venv/Scripts/ruff check:*)",
+      "Bash(C:/Users/guita/Documents/repos/grace/erdtree/.venv/Scripts/ruff format:*)",
+      "Bash(pnpm test:*)",
+      "Bash(C:/Users/guita/Documents/repos/grace/erdtree/.venv/Scripts/pytest C:/Users/guita/Documents/repos/grace/erdtree/tests/performance/ --collect-only)",
+      "Bash(C:/Users/guita/Documents/repos/grace/erdtree/.venv/Scripts/pytest:*)"
     ]
   }
 }
