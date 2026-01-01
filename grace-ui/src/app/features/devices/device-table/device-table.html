@@ -6,7 +6,6 @@
     [paginator]="true"
     [rows]="25"
     [rowsPerPageOptions]="[10, 25, 50, 100]"
-    [tableStyle]="{ 'min-width': '80rem' }"
     sortField="last_seen_at"
     [sortOrder]="-1"
     [dataKey]="'id'"
@@ -19,12 +18,12 @@
         <th pSortableColumn="os" class="w-24">
           OS <p-sortIcon field="os" />
         </th>
-        <th class="w-32">CPU</th>
-        <th class="w-32">Memory</th>
-        <th class="w-32">Disk</th>
-        <th class="w-28 text-center">Net Down</th>
-        <th class="w-28 text-center">Net Up</th>
-        <th pSortableColumn="last_seen_at" class="w-40">
+        <th>CPU</th>
+        <th>Memory</th>
+        <th>Disk</th>
+        <th class="w-32 text-center">Net Down</th>
+        <th class="w-32 text-center">Net Up</th>
+        <th pSortableColumn="last_seen_at">
           Last Seen <p-sortIcon field="last_seen_at" />
         </th>
       </tr>
@@ -36,10 +35,9 @@
           <p-tag [value]="device.os" />
         </td>
         <td>
-          @if (device.latest_metrics?.data?.cpu) {
-              <span>{{ getCPUPercent(device.latest_metrics.data.cpu) }}%</span>
+          @if (device.latest_metrics?.data?.cpu; as cpu) {
               <p-progressbar
-                [value]="getCPUPercent(device.latest_metrics.data.cpu)"
+                [value]="getCPUPercent(cpu)"
                 [showValue]="false"
               />
 
@@ -48,10 +46,9 @@
           }
         </td>
         <td>
-          @if (device.latest_metrics?.data?.ram) {
-            <span>{{ device.latest_metrics.data.ram.percent }}%</span>
+          @if (device.latest_metrics?.data?.ram; as ram) {
             <p-progressbar
-              [value]="device.latest_metrics.data.ram.percent"
+              [value]="ram.percent"
               [showValue]="false"
             />
           } @else {
@@ -59,10 +56,9 @@
           }
         </td>
         <td>
-          @if (device.latest_metrics?.data?.disk) {
-            <span>{{ getTotalDiskPercent(device.latest_metrics.data.disk) }}%</span>
+          @if (device.latest_metrics?.data?.disk; as disk) {
             <p-progressbar
-              [value]="getTotalDiskPercent(device.latest_metrics.data.disk)"
+              [value]="getTotalDiskPercent(disk)"
               [showValue]="false"
             />
           } @else {
@@ -70,15 +66,15 @@
           }
         </td>
         <td class="text-center">
-          @if (device.latest_metrics?.data?.network) {
-            <span>{{ formatSpeed(device.latest_metrics.data.network.rx_bytes_per_sec) }} MB/s</span>
+          @if (device.latest_metrics?.data?.network; as network) {
+            <span>{{ formatSpeed(network.rx_bytes_per_sec) }} MB/s</span>
           } @else {
             <span class="text-surface-400">-</span>
           }
         </td>
         <td class="text-center">
-          @if (device.latest_metrics?.data?.network) {
-            <span>{{ formatSpeed(device.latest_metrics.data.network.tx_bytes_per_sec) }} MB/s</span>
+          @if (device.latest_metrics?.data?.network; as network) {
+            <span>{{ formatSpeed(network.tx_bytes_per_sec) }} MB/s</span>
           } @else {
             <span class="text-surface-400">-</span>
           }

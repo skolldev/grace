@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { ProgressBar } from 'primeng/progressbar';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -12,7 +12,6 @@ import { CpuMetrics, DeviceSummary, DiskMetrics } from '../../../core/models';
   selector: 'grc-device-table',
   templateUrl: './device-table.html',
   imports: [DatePipe, ProgressBar, TableModule, TagModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DeviceTable {
   devices = input.required<DeviceSummary[]>();
@@ -32,7 +31,7 @@ export class DeviceTable {
   formatSpeed(bytesPerSec: number | undefined): string {
     if (bytesPerSec === undefined || bytesPerSec === 0) return '0';
     const mbPerSec = bytesPerSec / (1024 * 1024);
-    if (mbPerSec < 0.01) return '< 0.01';
+    if (mbPerSec < 0.01) return '0';
     return mbPerSec.toFixed(2);
   }
 
