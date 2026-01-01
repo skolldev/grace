@@ -25,9 +25,9 @@ type Config struct {
 
 func DefaultConfigPath() string {
 	if runtime.GOOS == "windows" {
-		return `C:\ProgramData\Grace\agent.yaml`
+		return `C:\ProgramData\Tarnished\agent.yaml`
 	}
-	return "/etc/grace/agent.yaml"
+	return "/etc/tarnished/agent.yaml"
 }
 
 func DefaultStatePath() string {

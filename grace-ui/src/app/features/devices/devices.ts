@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject, resource } from '@angular/core';
-import { lastValueFrom } from 'rxjs';
+import { ChangeDetectionStrategy, Component, effect, inject, resource, signal } from '@angular/core';
+import { interval, lastValueFrom } from 'rxjs';
+import { DeviceSummary } from '../../core/models';
 import { DevicesService } from '../../core/services/devices.service';
 import { DeviceTable } from './device-table/device-table';
 
@@ -14,9 +15,27 @@ import { DeviceTable } from './device-table/device-table';
 })
 export class Devices {
   private readonly devicesService = inject(DevicesService);
+  tableData = signal<DeviceSummary[]>([]);
+  countSig = signal(0);
+  
+  constructor() {
+
+    interval(5000).subscribe(() => {
+      this.countSig.update(prev => prev + 1);
+    });
+    
+
+    effect(() => {
+      const data = this.devices.value();
+      if (data !== undefined) {
+        this.tableData.set(data);
+      }
+    });
+  }
 
   devices = resource({
-    params: () => ({}),
+    params: () => ({ count: this.countSig() }),
     loader: () => lastValueFrom(this.devicesService.getAll()),
+    
   });
 }

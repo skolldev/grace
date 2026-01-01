@@ -1,7 +1,6 @@
 <div class="flex-1 flex flex-col overflow-hidden">
   <p-table
     [value]="devices()"
-    [loading]="loading()"
     scrollHeight="flex"
     [scrollable]="true"
     [paginator]="true"
@@ -13,15 +12,15 @@
   >
     <ng-template pTemplate="header">
       <tr>
-        <th pSortableColumn="hostname">
+        <th pSortableColumn="hostname" class="w-24">
           Hostname <p-sortIcon field="hostname" />
         </th>
         <th pSortableColumn="os" class="w-24">
           OS <p-sortIcon field="os" />
         </th>
-        <th>CPU</th>
-        <th>Memory</th>
-        <th>Disk</th>
+        <th class="w-32">CPU</th>
+        <th class="w-32">Memory</th>
+        <th class="w-32">Disk</th>
         <th class="w-28 text-center">Net Down</th>
         <th class="w-28 text-center">Net Up</th>
         <th pSortableColumn="last_seen_at" class="w-40">
@@ -37,19 +36,22 @@
         </td>
         <td>
           @if (device.latest_metrics?.data?.cpu) {
-            <p-progressbar
-              [value]="getCPUPercent(device.latest_metrics.data.cpu)"
-              [showValue]="true"
-            />
+              <span>{{ getCPUPercent(device.latest_metrics.data.cpu) }}%</span>
+              <p-progressbar
+                [value]="getCPUPercent(device.latest_metrics.data.cpu)"
+                [showValue]="false"
+              />
+
           } @else {
             <span class="text-surface-400">-</span>
           }
         </td>
         <td>
           @if (device.latest_metrics?.data?.ram) {
+            <span>{{ device.latest_metrics.data.ram.percent }}%</span>
             <p-progressbar
               [value]="device.latest_metrics.data.ram.percent"
-              [showValue]="true"
+              [showValue]="false"
             />
           } @else {
             <span class="text-surface-400">-</span>
@@ -57,9 +59,10 @@
         </td>
         <td>
           @if (device.latest_metrics?.data?.disk) {
+            <span>{{ getTotalDiskPercent(device.latest_metrics.data.disk) }}%</span>
             <p-progressbar
               [value]="getTotalDiskPercent(device.latest_metrics.data.disk)"
-              [showValue]="true"
+              [showValue]="false"
             />
           } @else {
             <span class="text-surface-400">-</span>

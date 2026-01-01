@@ -36,8 +36,8 @@ func main() {
 
 	// Persistent flags
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file path")
-	rootCmd.PersistentFlags().String("server", "", "Erdtree server URL (required)")
-	rootCmd.PersistentFlags().String("api-key", "", "API key for server authentication (required)")
+	rootCmd.PersistentFlags().String("server", "", "Erdtree server URL")
+	rootCmd.PersistentFlags().String("api-key", "", "API key for authentication")
 	rootCmd.PersistentFlags().Duration("interval", 10*time.Second, "Metric collection interval")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level: debug, info, warn, error")
 
@@ -148,11 +148,14 @@ func installCmd() *cobra.Command {
 			}
 
 			svcConfig := getServiceConfig()
-			// Pass arguments to service
+			// Pass config file path to service so it reads from YAML
+			configPath := cfgFile
+			if configPath == "" {
+				configPath = config.DefaultConfigPath()
+			}
 			svcConfig.Arguments = []string{
 				"run",
-				"--server", cfg.Server,
-				"--api-key", cfg.APIKey,
+				"--config", configPath,
 			}
 
 			ag, err := agent.New(cfg, logger)

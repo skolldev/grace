@@ -16,7 +16,6 @@ import { CpuMetrics, DeviceSummary, DiskMetrics } from '../../../core/models';
 })
 export class DeviceTable {
   devices = input.required<DeviceSummary[]>();
-  loading = input(false);
 
   getCPUPercent(cpu: CpuMetrics | undefined): number {
     if (cpu === undefined) return 0;
