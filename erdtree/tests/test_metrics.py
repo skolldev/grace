@@ -238,3 +238,33 @@ def test_get_metrics_bucket_alignment(
     timestamps = [b["timestamp"] for b in data]
     assert "2025-01-01T10:00:00Z" in timestamps
     assert "2025-01-01T10:05:00Z" in timestamps
+
+
+def test_timezone_aware_timestamp_normalized(
+    client: TestClient, device_id: str, auth_headers: dict
+):
+    """Ensure timezone-aware timestamps are stored correctly."""
+    # Send with explicit timezone
+    client.post(
+        f"/api/devices/{device_id}/metrics",
+        headers=auth_headers,
+        json={
+            "timestamp": "2025-01-15T10:00:00-05:00",  # EST = 15:00 UTC
+            "metrics": {"cpu": {"percent": 50.0}},
+        },
+    )
+
+    # Query in UTC - should find the metric
+    response = client.get(
+        f"/api/devices/{device_id}/metrics",
+        params={
+            "start": "2025-01-15T14:00:00Z",  # UTC
+            "end": "2025-01-15T16:00:00Z",
+            "resolution": "1h",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["timestamp"] == "2025-01-15T15:00:00Z"

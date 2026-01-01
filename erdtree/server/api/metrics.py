@@ -4,7 +4,7 @@ from sqlmodel import Session, text
 
 from server.core.auth import verify_api_key
 from server.core.database import get_session
-from server.models.models import Device, Metric, utc_now
+from server.models.models import Device, Metric, utc_now, to_naive_utc
 from server.models.schemas import MetricsPushPayload, MetricsResponse
 
 # Resolution bucket sizes in seconds
@@ -19,17 +19,6 @@ RESOLUTION_SECONDS = {
 VALID_RESOLUTIONS = set(RESOLUTION_SECONDS.keys())
 
 router = APIRouter()
-
-
-def aggregate(values: list[float]) -> dict | None:
-    """Compute avg/min/max for a list of values."""
-    if not values:
-        return None
-    return {
-        "avg": round(sum(values) / len(values), 2),
-        "min": round(min(values), 2),
-        "max": round(max(values), 2),
-    }
 
 
 def get_aggregated_metrics(
@@ -129,11 +118,13 @@ def push_metrics(
     device.last_seen_at = utc_now()
     session.add(device)
 
+    timestamp = to_naive_utc(payload.timestamp or utc_now())
+
     # Extract metrics from payload and store as columns
     m = payload.metrics
     metric = Metric(
         device_id=device_id,
-        timestamp=payload.timestamp or utc_now(),
+        timestamp=timestamp,
         cpu_percent=m.get("cpu", {}).get("percent"),
         ram_percent=m.get("ram", {}).get("percent"),
         ram_used_gb=m.get("ram", {}).get("used_gb"),
@@ -169,6 +160,10 @@ def get_metrics(
             status_code=400,
             detail=f"Invalid resolution. Valid values: {', '.join(sorted(VALID_RESOLUTIONS))}",
         )
+
+    # Normalize start and end to naive UTC
+    start = to_naive_utc(start)
+    end = to_naive_utc(end)
 
     # Validate time range
     if end <= start:

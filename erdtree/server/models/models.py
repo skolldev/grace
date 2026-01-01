@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timezone
 from typing import Optional
 import uuid
 from sqlmodel import SQLModel, Field, JSON, Column, Index
@@ -7,6 +7,21 @@ from sqlmodel import SQLModel, Field, JSON, Column, Index
 def utc_now() -> datetime:
     """Return current UTC time as a naive datetime (for SQLite compatibility)."""
     return datetime.now(UTC).replace(tzinfo=None)
+
+
+def to_naive_utc(dt: datetime | None) -> datetime | None:
+    """
+    Convert any datetime to naive UTC.
+
+    - If None, returns None
+    - If naive, assumes it's already UTC
+    - If aware, converts to UTC then strips tzinfo
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt  # Assume naive means UTC
+    return dt.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 class Setting(SQLModel, table=True):
