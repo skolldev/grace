@@ -145,8 +145,16 @@ def test_get_metrics_empty_range(client: TestClient, device_id: str):
     # All metrics should have structured null values
     assert bucket["data"]["cpu"]["percent"] == {"avg": None, "min": None, "max": None}
     assert bucket["data"]["ram"]["percent"] == {"avg": None, "min": None, "max": None}
-    assert bucket["data"]["network"]["rx_sec"] == {"avg": None, "min": None, "max": None}
-    assert bucket["data"]["network"]["tx_sec"] == {"avg": None, "min": None, "max": None}
+    assert bucket["data"]["network"]["rx_sec"] == {
+        "avg": None,
+        "min": None,
+        "max": None,
+    }
+    assert bucket["data"]["network"]["tx_sec"] == {
+        "avg": None,
+        "min": None,
+        "max": None,
+    }
 
 
 def test_get_metrics_aggregation(
