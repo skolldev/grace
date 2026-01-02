@@ -1,0 +1,19 @@
+@if (device(); as device) {
+  <div class="rounded-lg bg-content-900 border-content-700 border p-4">
+    <h2 class="text-2xl font-bold">{{ device.hostname }}</h2>
+    <div class="flex flex-1 gap-2 items-center">
+      <p>{{ isDeviceOnline() ? 'Online' : 'Offline' }}</p>
+      <p><i class="pi pi-os"></i> {{ device.os }}</p>
+      <p><i class="pi pi-arch"></i> {{ device.arch }}</p>
+      <p>{{ device.ip_address }}</p>
+      <p>Last seen: {{ device.last_seen_at | date: 'short' }}</p>
+      <a pButton [routerLink]="['/devices', device.id]"><span pButtonLabel>Go to device</span></a>
+    </div>
+  </div>
+} @else {
+  <div>
+    <p>No device selected</p>
+  </div>
+}
+
+<!-- rounded-lg bg-content-900 border-content-700 border p-4 -->

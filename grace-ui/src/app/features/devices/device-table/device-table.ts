@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, input } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { ProgressBar } from 'primeng/progressbar';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -15,6 +15,7 @@ import { CpuMetrics, DeviceSummary, DiskMetrics } from '../../../core/models';
 })
 export class DeviceTable {
   devices = input.required<DeviceSummary[]>();
+  deviceSelected = output<string>();
 
   getCPUPercent(cpu: CpuMetrics | undefined): number {
     if (cpu === undefined) return 0;
@@ -25,7 +26,7 @@ export class DeviceTable {
     if (!disks || disks.length === 0) return 0;
     const totalUsed = disks.reduce((sum, d) => sum + d.used_gb, 0);
     const totalSize = disks.reduce((sum, d) => sum + d.total_gb, 0);
-    return this.roundWithPrecision((totalSize > 0 ? (totalUsed / totalSize) * 100 : 0), 2);
+    return this.roundWithPrecision(totalSize > 0 ? (totalUsed / totalSize) * 100 : 0, 2);
   }
 
   formatSpeed(bytesPerSec: number | undefined): string {
@@ -38,5 +39,9 @@ export class DeviceTable {
   private roundWithPrecision(value: number, precision: number): number {
     const multiplier = 10 ** precision;
     return Math.round(value * multiplier) / multiplier;
+  }
+
+  onSelectionChange(selectedDeviceId: string) {
+    this.deviceSelected.emit(selectedDeviceId);
   }
 }

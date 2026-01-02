@@ -1,6 +1,13 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
+
+
+def _serialize_utc_datetime(dt: datetime) -> str:
+    """Serialize datetime to ISO 8601 with Z suffix (assumes naive is UTC)."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat().replace("+00:00", "Z")
 
 
 # Registration
@@ -38,12 +45,20 @@ class DeviceResponse(BaseModel):
     registered_at: datetime
     last_seen_at: datetime
 
+    @field_serializer("registered_at", "last_seen_at")
+    def serialize_datetime(self, dt: datetime) -> str:
+        return _serialize_utc_datetime(dt)
+
 
 class LatestMetric(BaseModel):
     """Latest metric snapshot with timestamp."""
 
     timestamp: datetime
     data: dict
+
+    @field_serializer("timestamp")
+    def serialize_datetime(self, dt: datetime) -> str:
+        return _serialize_utc_datetime(dt)
 
 
 class DeviceSummary(DeviceResponse):

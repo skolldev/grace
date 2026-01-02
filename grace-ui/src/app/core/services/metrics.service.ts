@@ -19,18 +19,14 @@ export class MetricsService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiUrl}/devices`;
 
-  getByDeviceId(
-    deviceId: string,
-    params: AggregatedMetricsParams
-  ): Observable<AggregatedMetric[]> {
+  getByDeviceId(deviceId: string, params: AggregatedMetricsParams): Observable<AggregatedMetric[]> {
     const httpParams = new HttpParams()
       .set('start', params.start)
       .set('end', params.end)
       .set('resolution', params.resolution);
 
-    return this.http.get<AggregatedMetric[]>(
-      `${this.baseUrl}/${deviceId}/metrics`,
-      { params: httpParams }
-    );
+    return this.http.get<AggregatedMetric[]>(`${this.baseUrl}/${deviceId}/metrics`, {
+      params: httpParams,
+    });
   }
 }

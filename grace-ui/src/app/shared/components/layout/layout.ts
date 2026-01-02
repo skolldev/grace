@@ -10,7 +10,6 @@ import { SplitButtonModule } from 'primeng/splitbutton';
   templateUrl: './layout.html',
   imports: [MenubarModule, RouterModule, ButtonModule, DialogModule, SplitButtonModule],
 })
-
 export class Layout {
   addSystemDialogVisible = model(false);
   items = [
@@ -34,7 +33,7 @@ export class Layout {
   systems = [
     {
       label: 'Windows',
-      icon: 'pi pi-windows',  
+      icon: 'pi pi-windows',
       command: () => this.getWindowsCommand(),
     },
   ];
@@ -44,10 +43,10 @@ export class Layout {
   }
 
   getLinuxCommand() {
-    navigator.clipboard.writeText("linux command");
+    navigator.clipboard.writeText('linux command');
   }
 
   getWindowsCommand() {
-    navigator.clipboard.writeText("windows command");
+    navigator.clipboard.writeText('windows command');
   }
-} 
+}

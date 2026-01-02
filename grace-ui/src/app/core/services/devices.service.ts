@@ -2,11 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import {
-  DeviceSummary,
-  RegisterRequest,
-  RegisterResponse,
-} from '../models';
+import { DeviceSummary, RegisterRequest, RegisterResponse } from '../models';
 
 @Injectable({
   providedIn: 'root',

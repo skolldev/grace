@@ -9,58 +9,44 @@
     sortField="last_seen_at"
     [sortOrder]="-1"
     [dataKey]="'id'"
+    [selectionMode]="'single'"
+    (selectionChange)="onSelectionChange($event)"
   >
     <ng-template pTemplate="header">
       <tr>
-        <th pSortableColumn="hostname" class="w-24">
-          Hostname <p-sortIcon field="hostname" />
-        </th>
-        <th pSortableColumn="os" class="w-24">
-          OS <p-sortIcon field="os" />
-        </th>
+        <th pSortableColumn="hostname" class="w-32">Hostname <p-sortIcon field="hostname" /></th>
+        <th pSortableColumn="os" class="w-24">OS <p-sortIcon field="os" /></th>
         <th>CPU</th>
         <th>Memory</th>
         <th>Disk</th>
         <th class="w-32 text-center">Net Down</th>
         <th class="w-32 text-center">Net Up</th>
-        <th pSortableColumn="last_seen_at">
-          Last Seen <p-sortIcon field="last_seen_at" />
-        </th>
+        <th pSortableColumn="last_seen_at">Last Seen <p-sortIcon field="last_seen_at" /></th>
       </tr>
     </ng-template>
     <ng-template pTemplate="body" let-device>
-      <tr>
+      <tr [pSelectableRow]="device.id">
         <td>{{ device.hostname }}</td>
         <td>
           <p-tag [value]="device.os" />
         </td>
         <td>
           @if (device.latest_metrics?.data?.cpu; as cpu) {
-              <p-progressbar
-                [value]="getCPUPercent(cpu)"
-                [showValue]="false"
-              />
-
+            <p-progressbar [value]="getCPUPercent(cpu)" [showValue]="false" />
           } @else {
             <span class="text-surface-400">-</span>
           }
         </td>
         <td>
           @if (device.latest_metrics?.data?.ram; as ram) {
-            <p-progressbar
-              [value]="ram.percent"
-              [showValue]="false"
-            />
+            <p-progressbar [value]="ram.percent" [showValue]="false" />
           } @else {
             <span class="text-surface-400">-</span>
           }
         </td>
         <td>
           @if (device.latest_metrics?.data?.disk; as disk) {
-            <p-progressbar
-              [value]="getTotalDiskPercent(disk)"
-              [showValue]="false"
-            />
+            <p-progressbar [value]="getTotalDiskPercent(disk)" [showValue]="false" />
           } @else {
             <span class="text-surface-400">-</span>
           }

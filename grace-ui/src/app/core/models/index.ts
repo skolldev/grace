@@ -1,15 +1,12 @@
-export type {
-  RegistrationToken, TokenResponse
-} from './admin.models';
+export type { RegistrationToken, TokenResponse } from './admin.models';
 
 export type {
   Device,
   DeviceSummary,
   LatestMetric,
   RegisterRequest,
-  RegisterResponse
+  RegisterResponse,
 } from './device.models';
-
 
 export type { Log } from './log.models';
 
@@ -22,7 +19,7 @@ export type {
   DiskMetrics,
   Metric,
   NetworkMetrics,
-  RamMetrics
+  RamMetrics,
 } from './metric.models';
 
 export type {
@@ -31,6 +28,5 @@ export type {
   ReportSensorsResponse,
   SensorConfigResponse,
   SensorInfo,
-  UpdateSensorConfigRequest
+  UpdateSensorConfigRequest,
 } from './sensor.models';
-

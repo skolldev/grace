@@ -1,7 +1,6 @@
-import { ChangeDetectionStrategy, Component, effect, inject, resource, signal } from '@angular/core';
-import { interval, lastValueFrom } from 'rxjs';
-import { DeviceSummary } from '../../core/models';
-import { DevicesService } from '../../core/services/devices.service';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { DeviceStore } from '../../core/stores/device.store';
+import { DeviceDetail } from './device-preview/device-detail';
 import { DeviceTable } from './device-table/device-table';
 
 @Component({
@@ -10,32 +9,12 @@ import { DeviceTable } from './device-table/device-table';
   },
   selector: 'grc-devices',
   templateUrl: './devices.html',
-  imports: [DeviceTable],
+  imports: [DeviceTable, DeviceDetail],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Devices {
-  private readonly devicesService = inject(DevicesService);
-  tableData = signal<DeviceSummary[]>([]);
-  countSig = signal(0);
-  
-  constructor() {
+  private readonly deviceStore = inject(DeviceStore);
 
-    interval(5000).subscribe(() => {
-      this.countSig.update(prev => prev + 1);
-    });
-    
-
-    effect(() => {
-      const data = this.devices.value();
-      if (data !== undefined) {
-        this.tableData.set(data);
-      }
-    });
-  }
-
-  devices = resource({
-    params: () => ({ count: this.countSig() }),
-    loader: () => lastValueFrom(this.devicesService.getAll()),
-    
-  });
+  devices = this.deviceStore.devices;
+  selectedDeviceId = signal<string | undefined>(undefined);
 }

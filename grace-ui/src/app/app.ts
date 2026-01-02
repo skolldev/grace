@@ -6,7 +6,6 @@ import { Layout } from './shared/components/layout/layout';
   selector: 'grc-root',
   imports: [RouterOutlet, Layout],
   templateUrl: './app.html',
-  styleUrl: './app.css'
+  styleUrl: './app.css',
 })
-export class App {
-}
+export class App {}

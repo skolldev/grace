@@ -1,6 +1,11 @@
-<div class="flex flex-col gap-8 flex-1 overflow-hidden rounded-lg bg-content-900 border-content-700 border p-4">
-  <h2 class="text-2xl font-bold">Devices</h2>
-  <grc-device-table
-    [devices]="tableData()"
-  />
+<div class="flex flex-1 gap-4">
+  <div
+    class="flex flex-col gap-8 flex-1 overflow-hidden rounded-lg bg-content-900 border-content-700 border p-4"
+  >
+    <h2 class="text-2xl font-bold">Devices</h2>
+    <grc-device-table [devices]="devices()" (deviceSelected)="selectedDeviceId.set($event)" />
+  </div>
+  <div class="flex-1">
+    <grc-device-detail [deviceId]="selectedDeviceId()" />
+  </div>
 </div>
