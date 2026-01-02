@@ -47,11 +47,11 @@ export interface AggregateValue {
 }
 
 export interface AggregatedMetricData {
-  cpu: { percent: AggregateValue | null };
-  ram: { percent: AggregateValue | null };
+  cpu: { percent: AggregateValue };
+  ram: { percent: AggregateValue };
   network: {
-    rx_sec: AggregateValue | null;
-    tx_sec: AggregateValue | null;
+    rx_sec: AggregateValue;
+    tx_sec: AggregateValue;
   };
 }
 

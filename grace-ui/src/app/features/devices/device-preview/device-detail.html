@@ -1,5 +1,5 @@
 @if (device(); as device) {
-  <div class="rounded-lg bg-content-900 border-content-700 border p-4">
+  <div class="rounded-lg bg-content-900 border-content-700 border p-4 mb-4">
     <h2 class="text-2xl font-bold">{{ device.hostname }}</h2>
     <div class="flex flex-1 gap-2 items-center">
       <p>{{ isDeviceOnline() ? 'Online' : 'Offline' }}</p>
@@ -7,13 +7,39 @@
       <p><i class="pi pi-arch"></i> {{ device.arch }}</p>
       <p>{{ device.ip_address }}</p>
       <p>Last seen: {{ device.last_seen_at | date: 'short' }}</p>
+      <p-select
+        [ngModel]="resolution()"
+        (ngModelChange)="resolution.set($event)"
+        [options]="resolutionOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Resolution"
+        class="w-32"
+      />
+      <p-select
+        [ngModel]="timeframe()"
+        (ngModelChange)="timeframe.set($event)"
+        [options]="timeframeOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Timeframe"
+        class="w-32"
+      />
       <a pButton [routerLink]="['/devices', device.id]"><span pButtonLabel>Go to device</span></a>
     </div>
   </div>
-} @else {
-  <div>
-    <p>No device selected</p>
-  </div>
-}
+    @if(metricsResource.hasValue()) {
+    <div class="grid grid-cols-2 gap-4">
+      <grc-chart-card [title]="'CPU Usage'" [data]="cpuMetric()"></grc-chart-card>
+      <grc-chart-card [title]="'RAM Usage'" [data]="ramMetric()"></grc-chart-card>
+      <grc-chart-card [title]="'Network RX Usage'" [data]="networkRxMetric()"></grc-chart-card>
+      <grc-chart-card [title]="'Network TX Usage'" [data]="networkTxMetric()"></grc-chart-card>
 
-<!-- rounded-lg bg-content-900 border-content-700 border p-4 -->
+    </div>
+    }
+    @else {
+      <p>Loading metrics...</p>
+    }
+  } @else {
+    <p>No device selected</p>
+  }

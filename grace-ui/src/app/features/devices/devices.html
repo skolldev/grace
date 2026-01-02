@@ -6,6 +6,10 @@
     <grc-device-table [devices]="devices()" (deviceSelected)="selectedDeviceId.set($event)" />
   </div>
   <div class="flex-1">
-    <grc-device-detail [deviceId]="selectedDeviceId()" />
+    @if(selectedDeviceId()) {
+      <grc-device-detail [deviceId]="selectedDeviceId()" />
+    } @else {
+      <p>No device selected</p>
+    }
   </div>
 </div>
