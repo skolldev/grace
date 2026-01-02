@@ -6,6 +6,7 @@ from server.core.auth import verify_api_key
 from server.core.database import get_session
 from server.models.models import Device, Metric, utc_now, to_naive_utc
 from server.models.schemas import MetricsPushPayload, MetricsResponse
+from server.core.logger import log_info
 
 # Resolution bucket sizes in seconds
 RESOLUTION_SECONDS = {
@@ -73,9 +74,10 @@ def get_aggregated_metrics(
     )
     rows = result.fetchall()
 
-    # Build response - now just iterating ~100-300 rows
-    return [
-        {
+    # Build lookup dict from SQL results
+    data_by_ts = {}
+    for row in rows:
+        data_by_ts[row.bucket_ts] = {
             "timestamp": datetime.fromtimestamp(row.bucket_ts, tz=timezone.utc)
             .isoformat()
             .replace("+00:00", "Z"),
@@ -88,17 +90,64 @@ def get_aggregated_metrics(
                 },
             },
         }
-        for row in rows
-    ]
+
+    # Generate all expected bucket timestamps and fill gaps with nulls
+    expected_timestamps = _generate_bucket_timestamps(start, end, resolution)
+    return [data_by_ts.get(ts) or _null_bucket(ts) for ts in expected_timestamps]
 
 
-def _agg(avg: float | None, min_: float | None, max_: float | None) -> dict | None:
+def _agg(avg: float | None, min_: float | None, max_: float | None) -> dict:
+    """Return aggregated values with consistent structure (nulls for missing data)."""
     if avg is None:
-        return None
+        return {"avg": None, "min": None, "max": None}
     return {
         "avg": round(avg, 2),
         "min": round(min_, 2),
         "max": round(max_, 2),
+    }
+
+
+def _generate_bucket_timestamps(
+    start: datetime, end: datetime, resolution: str
+) -> list[int]:
+    """Generate all expected bucket timestamps between start and end.
+
+    Note: start and end are naive datetimes representing UTC.
+    """
+    bucket_seconds = RESOLUTION_SECONDS[resolution]
+
+    # Convert naive UTC datetimes to Unix timestamps
+    # (replace with UTC timezone to get correct timestamp)
+    start_ts = int(start.replace(tzinfo=timezone.utc).timestamp())
+    end_ts = int(end.replace(tzinfo=timezone.utc).timestamp())
+
+    # Align start to bucket boundary
+    aligned_start = (start_ts // bucket_seconds) * bucket_seconds
+
+    timestamps = []
+    current = aligned_start
+    while current < end_ts:
+        timestamps.append(current)
+        current += bucket_seconds
+
+    return timestamps
+
+
+def _null_bucket(timestamp: int) -> dict:
+    """Create a bucket with null values for all metrics."""
+    null_agg = {"avg": None, "min": None, "max": None}
+    return {
+        "timestamp": datetime.fromtimestamp(timestamp, tz=timezone.utc)
+        .isoformat()
+        .replace("+00:00", "Z"),
+        "data": {
+            "cpu": {"percent": null_agg},
+            "ram": {"percent": null_agg},
+            "network": {
+                "rx_sec": null_agg,
+                "tx_sec": null_agg,
+            },
+        },
     }
 
 
@@ -133,6 +182,17 @@ def push_metrics(
         net_rx_bytes_sec=m.get("network", {}).get("rx_bytes_per_sec"),
         net_tx_bytes_sec=m.get("network", {}).get("tx_bytes_per_sec"),
     )
+
+    metric_data = {
+        "cpu_percent": metric.cpu_percent,
+        "ram_percent": metric.ram_percent,
+        "ram_used_gb": metric.ram_used_gb,
+        "ram_total_gb": metric.ram_total_gb,
+        "disk": metric.disk,
+        "net_rx_bytes_sec": metric.net_rx_bytes_sec,
+        "net_tx_bytes_sec": metric.net_tx_bytes_sec,
+    }
+    log_info(f"Pushed metrics for device {device_id}: {metric_data}", "metrics")
     session.add(metric)
     session.commit()
 

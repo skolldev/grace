@@ -11,6 +11,7 @@ import { AggregateValue } from '../../../core';
 export class ChartCard {
   title = input.required<string>();
   data = input.required<{ label: string; data: AggregateValue }[]>();
+  type = input.required<'percent' | 'absolute'>();
 
   chartData = computed(() => {
     const points = this.data();
@@ -47,7 +48,7 @@ export class ChartCard {
     };
   });
 
-  chartOptions = {
+  chartOptions = computed(() => ({
     maintainAspectRatio: false,
     aspectRatio: 0.6,
     plugins: {
@@ -65,6 +66,8 @@ export class ChartCard {
         },
       },
       y: {
+        min: this.type() === 'percent' ? 0 : undefined,
+        max: this.type() === 'percent' ? 100 : undefined,
         ticks: {
           color: 'rgb(156, 163, 175)',
         },
@@ -73,5 +76,5 @@ export class ChartCard {
         },
       },
     },
-  };
+  }));
 }

@@ -41,9 +41,9 @@ export interface Metric {
 
 // Aggregated metrics types (for time-bucketed queries)
 export interface AggregateValue {
-  avg: number;
-  min: number;
-  max: number;
+  avg: number | null;
+  min: number | null;
+  max: number | null;
 }
 
 export interface AggregatedMetricData {

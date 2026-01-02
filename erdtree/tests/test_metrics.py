@@ -125,7 +125,7 @@ def test_get_metrics_device_not_found(client: TestClient):
 
 
 def test_get_metrics_empty_range(client: TestClient, device_id: str):
-    """Test that empty time range returns empty array."""
+    """Test that empty time range returns buckets with null values."""
     response = client.get(
         f"/api/devices/{device_id}/metrics",
         params={
@@ -135,7 +135,18 @@ def test_get_metrics_empty_range(client: TestClient, device_id: str):
         },
     )
     assert response.status_code == 200
-    assert response.json() == []
+    data = response.json()
+
+    # Should return 1 bucket with null values (00:00-01:00 @ 1h = 1 bucket)
+    assert len(data) == 1
+    bucket = data[0]
+    assert bucket["timestamp"] == "2025-01-01T00:00:00Z"
+
+    # All metrics should have structured null values
+    assert bucket["data"]["cpu"]["percent"] == {"avg": None, "min": None, "max": None}
+    assert bucket["data"]["ram"]["percent"] == {"avg": None, "min": None, "max": None}
+    assert bucket["data"]["network"]["rx_sec"] == {"avg": None, "min": None, "max": None}
+    assert bucket["data"]["network"]["tx_sec"] == {"avg": None, "min": None, "max": None}
 
 
 def test_get_metrics_aggregation(
@@ -266,5 +277,105 @@ def test_timezone_aware_timestamp_normalized(
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 1
-    assert data[0]["timestamp"] == "2025-01-15T15:00:00Z"
+
+    # Gap-filling returns 2 buckets: 14:00 (null) and 15:00 (with data)
+    assert len(data) == 2
+    assert data[0]["timestamp"] == "2025-01-15T14:00:00Z"
+    assert data[0]["data"]["cpu"]["percent"]["avg"] is None  # No data in 14:00 bucket
+
+    assert data[1]["timestamp"] == "2025-01-15T15:00:00Z"
+    assert data[1]["data"]["cpu"]["percent"]["avg"] == 50.0  # Data in 15:00 bucket
+
+
+def test_gap_filling_sparse_data(
+    client: TestClient, device_id: str, auth_headers: dict
+):
+    """Test that gaps in data are filled with null buckets."""
+    # Push metrics at 10:00 and 10:10 (skipping 10:05)
+    client.post(
+        f"/api/devices/{device_id}/metrics",
+        headers=auth_headers,
+        json={
+            "timestamp": "2025-01-01T10:00:30",
+            "metrics": {"cpu": {"percent": 50.0}},
+        },
+    )
+    client.post(
+        f"/api/devices/{device_id}/metrics",
+        headers=auth_headers,
+        json={
+            "timestamp": "2025-01-01T10:10:30",
+            "metrics": {"cpu": {"percent": 75.0}},
+        },
+    )
+
+    # Query 10:00-10:15 @ 5m resolution (should return 3 buckets)
+    response = client.get(
+        f"/api/devices/{device_id}/metrics",
+        params={
+            "start": "2025-01-01T10:00:00",
+            "end": "2025-01-01T10:15:00",
+            "resolution": "5m",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 3  # 10:00, 10:05, 10:10
+
+    # Verify timestamps
+    assert data[0]["timestamp"] == "2025-01-01T10:00:00Z"
+    assert data[1]["timestamp"] == "2025-01-01T10:05:00Z"
+    assert data[2]["timestamp"] == "2025-01-01T10:10:00Z"
+
+    # First bucket has data
+    assert data[0]["data"]["cpu"]["percent"]["avg"] == 50.0
+
+    # Second bucket is a gap (null values)
+    null_agg = {"avg": None, "min": None, "max": None}
+    assert data[1]["data"]["cpu"]["percent"] == null_agg
+    assert data[1]["data"]["ram"]["percent"] == null_agg
+    assert data[1]["data"]["network"]["rx_sec"] == null_agg
+    assert data[1]["data"]["network"]["tx_sec"] == null_agg
+
+    # Third bucket has data
+    assert data[2]["data"]["cpu"]["percent"]["avg"] == 75.0
+
+
+def test_gap_filling_bucket_count(client: TestClient, device_id: str):
+    """Test that correct number of buckets are returned for various resolutions."""
+    # Query 1 hour @ 5m resolution = 12 buckets
+    response = client.get(
+        f"/api/devices/{device_id}/metrics",
+        params={
+            "start": "2025-01-01T10:00:00",
+            "end": "2025-01-01T11:00:00",
+            "resolution": "5m",
+        },
+    )
+    assert response.status_code == 200
+    assert len(response.json()) == 12
+
+    # Query 1 hour @ 15m resolution = 4 buckets
+    response = client.get(
+        f"/api/devices/{device_id}/metrics",
+        params={
+            "start": "2025-01-01T10:00:00",
+            "end": "2025-01-01T11:00:00",
+            "resolution": "15m",
+        },
+    )
+    assert response.status_code == 200
+    assert len(response.json()) == 4
+
+    # Query 24 hours @ 1h resolution = 24 buckets
+    response = client.get(
+        f"/api/devices/{device_id}/metrics",
+        params={
+            "start": "2025-01-01T00:00:00",
+            "end": "2025-01-02T00:00:00",
+            "resolution": "1h",
+        },
+    )
+    assert response.status_code == 200
+    assert len(response.json()) == 24

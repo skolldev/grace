@@ -12,14 +12,10 @@ import {
 } from '../../../core/services/metrics.service';
 import { DeviceStore } from '../../../core/stores/device.store';
 import { ChartCard } from '../chart-card/chart-card';
-interface TimeframeOption {
-  label: string;
-  value: number;
-}
 
-interface ResolutionOption {
-  label: string;
-  value: Resolution;
+interface Timeframe {
+  timeframe: string;
+  resolution: Resolution;
 }
 
 @Component({
@@ -39,15 +35,24 @@ export class DeviceDetail {
     return Date.now() - new Date(lastSeen).getTime() < 5 * 60 * 1000;
   });
 
-  resolution = signal<Resolution>('5m');
-  timeframe = signal<number>(1);
+  timeframe = signal<Timeframe>({ timeframe: '1h', resolution: '1m' });
 
   dateRange = computed(() => {
     const end = new Date();
     const start = new Date();
-    const days = this.timeframe();
+    const timeframe = this.timeframe().timeframe;
 
-    start.setDate(end.getDate() - days);
+    const value = parseInt(timeframe.slice(0, -1));
+    const unit = timeframe.slice(-1);
+
+    switch (unit) {
+      case 'h':
+        start.setHours(start.getHours() - value);
+        break;
+      case 'd':
+        start.setDate(start.getDate() - value);
+        break;
+    }
 
     return {
       start: start.toISOString(),
@@ -55,28 +60,18 @@ export class DeviceDetail {
     };
   });
 
-  resolutionOptions: ResolutionOption[] = [
-    { label: '1 minute', value: '1m' },
-    { label: '5 minutes', value: '5m' },
-    { label: '15 minutes', value: '15m' },
-    { label: '1 hour', value: '1h' },
-    { label: '6 hours', value: '6h' },
-    { label: '1 day', value: '1d' },
-  ];
-
-  timeframeOptions: TimeframeOption[] = [
-    { label: '1 day', value: 1 },
-    { label: '7 days', value: 7 },
-    { label: '14 days', value: 14 },
-    { label: '30 days', value: 30 },
-    { label: '90 days', value: 90 },
+  timeframeConfig: { label: string; value: Timeframe }[] = [
+    { label: 'Last hour', value: { timeframe: '1h', resolution: '1m' } },
+    { label: 'Last 24 hours', value: { timeframe: '24h', resolution: '1h' } },
+    { label: 'Last 7 days', value: { timeframe: '7d', resolution: '6h' } },
+    { label: 'Last 30 days', value: { timeframe: '30d', resolution: '1d' } },
   ];
 
   metricsResource = resource({
     params: () => ({
       start: this.dateRange().start,
       end: this.dateRange().end,
-      resolution: this.resolution(),
+      resolution: this.timeframe().resolution,
     }),
     loader: ({ params }: { params: AggregatedMetricsParams }) =>
       firstValueFrom(this.metricsService.getByDeviceId(this.deviceId() ?? '', params)),
@@ -102,7 +97,14 @@ export class DeviceDetail {
     this.metricsResource.hasValue()
       ? this.metricsResource
           .value()
-          .map((metric) => ({ label: metric.timestamp, data: metric.data.network.rx_sec }))
+          .map((metric) => ({
+            label: metric.timestamp,
+            data: {
+              avg: metric.data.network.rx_sec.avg !== null ? (metric.data.network.rx_sec.avg * 8) / 1000000 : null,
+              min: metric.data.network.rx_sec.min !== null ? (metric.data.network.rx_sec.min * 8) / 1000000 : null,
+              max: metric.data.network.rx_sec.max !== null ? (metric.data.network.rx_sec.max * 8) / 1000000 : null,
+            },
+          }))
       : []
   );
 
@@ -110,7 +112,14 @@ export class DeviceDetail {
     this.metricsResource.hasValue()
       ? this.metricsResource
           .value()
-          .map((metric) => ({ label: metric.timestamp, data: metric.data.network.tx_sec }))
+          .map((metric) => ({
+            label: metric.timestamp,
+            data: {
+              avg: metric.data.network.tx_sec.avg !== null ? (metric.data.network.tx_sec.avg * 8) / 1000000 : null,
+              min: metric.data.network.tx_sec.min !== null ? (metric.data.network.tx_sec.min * 8) / 1000000 : null,
+              max: metric.data.network.tx_sec.max !== null ? (metric.data.network.tx_sec.max * 8) / 1000000 : null,
+            },
+          }))
       : []
   );
 }
