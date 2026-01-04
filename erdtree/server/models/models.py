@@ -110,3 +110,21 @@ class DeviceSensor(SQLModel, table=True):
     unit: str  # C, V, RPM, etc.
     enabled: bool = Field(default=False)
     source: str  # "hwinfo"
+
+
+class SensorMetric(SQLModel, table=True):
+    __tablename__ = "sensor_metrics"
+
+    id: int = Field(default=None, primary_key=True)
+    device_id: str = Field(foreign_key="devices.id", index=True)
+    sensor_id: str = Field(index=True)
+    timestamp: datetime = Field(default_factory=utc_now, index=True)
+    value: float
+
+    __table_args__ = (
+        Index("idx_sensor_metric_device_sensor_ts", "device_id", "sensor_id", "timestamp"),
+    )
+
+    @field_serializer("timestamp")
+    def serialize_datetime(self, dt: datetime) -> str:
+        return serialize_utc_datetime(dt)

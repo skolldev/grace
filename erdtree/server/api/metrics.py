@@ -1,11 +1,15 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel import Session, text
+from sqlmodel import Session, select, text
 
 from server.core.auth import verify_api_key
 from server.core.database import get_session
-from server.models.models import Device, Metric, utc_now, to_naive_utc
-from server.models.schemas import MetricsPushPayload, MetricsResponse
+from server.models.models import Device, DeviceSensor, Metric, SensorMetric, utc_now, to_naive_utc
+from server.models.schemas import (
+    AggregatedSensorMetricsResponse,
+    MetricsPushPayload,
+    MetricsResponse,
+)
 from server.core.logger import log_info
 
 # Resolution bucket sizes in seconds
@@ -194,6 +198,27 @@ def push_metrics(
     }
     log_info(f"Pushed metrics for device {device_id}: {metric_data}", "metrics")
     session.add(metric)
+
+    # Store sensor metrics (only enabled sensors)
+    sensors_data = m.get("sensors", {})
+    if sensors_data:
+        enabled_sensors = session.exec(
+            select(DeviceSensor.sensor_id)
+            .where(DeviceSensor.device_id == device_id)
+            .where(DeviceSensor.enabled)
+        ).all()
+        enabled_set = set(enabled_sensors)
+
+        for sensor_id, value in sensors_data.items():
+            if sensor_id in enabled_set and value is not None:
+                sensor_metric = SensorMetric(
+                    device_id=device_id,
+                    sensor_id=sensor_id,
+                    timestamp=timestamp,
+                    value=value,
+                )
+                session.add(sensor_metric)
+
     session.commit()
 
     return MetricsResponse(status="ok")
@@ -233,3 +258,138 @@ def get_metrics(
         )
 
     return get_aggregated_metrics(session, device_id, start, end, resolution)
+
+
+def get_aggregated_sensor_metrics(
+    session: Session,
+    device_id: str,
+    start: datetime,
+    end: datetime,
+    resolution: str,
+) -> AggregatedSensorMetricsResponse:
+    """Fetch sensor metrics and aggregate into time buckets, grouped by sensor."""
+    bucket_seconds = RESOLUTION_SECONDS[resolution]
+    start_str = start.strftime("%Y-%m-%d %H:%M:%S")
+    end_str = end.strftime("%Y-%m-%d %H:%M:%S")
+
+    # Get sensor metadata for display names and units
+    sensors = session.exec(
+        select(DeviceSensor)
+        .where(DeviceSensor.device_id == device_id)
+        .where(DeviceSensor.enabled)
+    ).all()
+    sensor_info = {s.sensor_id: s for s in sensors}
+
+    # Aggregate sensor data
+    query = text("""
+        SELECT
+            sensor_id,
+            (unixepoch(timestamp) / :bucket) * :bucket as bucket_ts,
+            AVG(value) as avg,
+            MIN(value) as min,
+            MAX(value) as max
+        FROM sensor_metrics
+        WHERE device_id = :device_id
+          AND timestamp >= :start_ts
+          AND timestamp < :end_ts
+        GROUP BY sensor_id, bucket_ts
+        ORDER BY sensor_id, bucket_ts
+    """)
+
+    result = session.execute(
+        query,
+        {
+            "bucket": bucket_seconds,
+            "device_id": device_id,
+            "start_ts": start_str,
+            "end_ts": end_str,
+        },
+    )
+    rows = result.fetchall()
+
+    # Group by sensor
+    sensors_data: dict = {}
+    for row in rows:
+        sensor_id = row.sensor_id
+        if sensor_id not in sensors_data:
+            info = sensor_info.get(sensor_id)
+            sensors_data[sensor_id] = {
+                "sensor_id": sensor_id,
+                "name": (info.display_name or info.name) if info else sensor_id,
+                "sensor_type": info.sensor_type if info else "unknown",
+                "unit": info.unit if info else "",
+                "data": {},
+            }
+
+        sensors_data[sensor_id]["data"][row.bucket_ts] = {
+            "timestamp": datetime.fromtimestamp(row.bucket_ts, tz=timezone.utc)
+            .isoformat()
+            .replace("+00:00", "Z"),
+            "value": {
+                "avg": round(row.avg, 2) if row.avg is not None else None,
+                "min": round(row.min, 2) if row.min is not None else None,
+                "max": round(row.max, 2) if row.max is not None else None,
+            },
+        }
+
+    # Fill gaps with null values for each sensor
+    expected_timestamps = _generate_bucket_timestamps(start, end, resolution)
+    null_value = {"avg": None, "min": None, "max": None}
+
+    result_sensors = []
+    for sensor_id, sensor_data in sensors_data.items():
+        data_by_ts = sensor_data["data"]
+        filled_data = []
+        for ts in expected_timestamps:
+            if ts in data_by_ts:
+                filled_data.append(data_by_ts[ts])
+            else:
+                filled_data.append({
+                    "timestamp": datetime.fromtimestamp(ts, tz=timezone.utc)
+                    .isoformat()
+                    .replace("+00:00", "Z"),
+                    "value": null_value,
+                })
+
+        result_sensors.append({
+            "sensor_id": sensor_id,
+            "name": sensor_data["name"],
+            "sensor_type": sensor_data["sensor_type"],
+            "unit": sensor_data["unit"],
+            "data": filled_data,
+        })
+
+    return AggregatedSensorMetricsResponse(sensors=result_sensors)
+
+
+@router.get("/{device_id}/metrics/sensors", response_model=AggregatedSensorMetricsResponse)
+def get_sensor_metrics(
+    device_id: str,
+    start: datetime = Query(..., description="Start time (ISO format)"),
+    end: datetime = Query(..., description="End time (ISO format)"),
+    resolution: str = Query(
+        ..., description="Aggregation bucket: 1m, 5m, 15m, 1h, 6h, 1d"
+    ),
+    session: Session = Depends(get_session),
+):
+    """Get aggregated sensor metrics for a device."""
+    device = session.get(Device, device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    if resolution not in VALID_RESOLUTIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid resolution. Valid values: {', '.join(sorted(VALID_RESOLUTIONS))}",
+        )
+
+    start = to_naive_utc(start)
+    end = to_naive_utc(end)
+
+    if end <= start:
+        raise HTTPException(
+            status_code=400,
+            detail="End time must be after start time",
+        )
+
+    return get_aggregated_sensor_metrics(session, device_id, start, end, resolution)

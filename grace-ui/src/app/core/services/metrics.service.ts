@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { AggregatedMetric } from '../models';
+import { AggregatedMetric, AggregatedSensorMetricsResponse } from '../models';
 
 export type Resolution = '1m' | '5m' | '15m' | '1h' | '6h' | '1d';
 
@@ -28,5 +28,20 @@ export class MetricsService {
     return this.http.get<AggregatedMetric[]>(`${this.baseUrl}/${deviceId}/metrics`, {
       params: httpParams,
     });
+  }
+
+  getSensorMetrics(
+    deviceId: string,
+    params: AggregatedMetricsParams
+  ): Observable<AggregatedSensorMetricsResponse> {
+    const httpParams = new HttpParams()
+      .set('start', params.start)
+      .set('end', params.end)
+      .set('resolution', params.resolution);
+
+    return this.http.get<AggregatedSensorMetricsResponse>(
+      `${this.baseUrl}/${deviceId}/metrics/sensors`,
+      { params: httpParams }
+    );
   }
 }

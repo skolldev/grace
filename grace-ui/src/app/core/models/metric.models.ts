@@ -59,3 +59,21 @@ export interface AggregatedMetric {
   timestamp: string;
   data: AggregatedMetricData;
 }
+
+// Aggregated sensor metrics types
+export interface AggregatedSensorDataPoint {
+  timestamp: string;
+  value: AggregateValue;
+}
+
+export interface AggregatedSensorData {
+  sensor_id: string;
+  name: string;
+  sensor_type: string;
+  unit: string;
+  data: AggregatedSensorDataPoint[];
+}
+
+export interface AggregatedSensorMetricsResponse {
+  sensors: AggregatedSensorData[];
+}

@@ -108,3 +108,31 @@ class UpdateSensorConfigRequest(BaseModel):
 
 class SensorConfigResponse(BaseModel):
     enabled: list[str]  # List of enabled sensor_ids
+
+
+# Aggregated Sensor Metrics
+class AggregatedSensorValue(BaseModel):
+    avg: float | None
+    min: float | None
+    max: float | None
+
+
+class AggregatedSensorDataPoint(BaseModel):
+    timestamp: datetime
+    value: AggregatedSensorValue
+
+    @field_serializer("timestamp")
+    def serialize_datetime(self, dt: datetime) -> str:
+        return _serialize_utc_datetime(dt)
+
+
+class AggregatedSensorData(BaseModel):
+    sensor_id: str
+    name: str
+    sensor_type: str
+    unit: str
+    data: list[AggregatedSensorDataPoint]
+
+
+class AggregatedSensorMetricsResponse(BaseModel):
+    sensors: list[AggregatedSensorData]

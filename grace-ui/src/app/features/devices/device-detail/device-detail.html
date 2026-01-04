@@ -51,6 +51,9 @@
         [data]="networkTxMetric()"
         [type]="'absolute'"
       ></grc-chart-card>
+      @for (sensor of sensorCharts(); track sensor.sensor_id) {
+        <grc-chart-card [title]="sensor.title" [data]="sensor.data" [type]="'absolute'" />
+      }
     </div>
   } @else {
     <p>Loading metrics...</p>

@@ -387,3 +387,319 @@ def test_gap_filling_bucket_count(client: TestClient, device_id: str):
     )
     assert response.status_code == 200
     assert len(response.json()) == 24
+
+
+# ============================================================================
+# Sensor Metrics Tests
+# ============================================================================
+
+
+@pytest.fixture
+def device_with_sensors(client: TestClient, auth_headers: dict) -> str:
+    """Create a device with sensors registered and one enabled."""
+    # Register device
+    reg_response = client.post(
+        "/api/devices/register",
+        headers=auth_headers,
+        json={"hostname": "sensor-host", "os": "windows", "arch": "amd64"},
+    )
+    device_id = reg_response.json()["device_id"]
+
+    # Report sensors
+    client.post(
+        f"/api/devices/{device_id}/sensors",
+        headers=auth_headers,
+        json={
+            "sensors": [
+                {
+                    "sensor_id": "hwinfo:temp:cpu",
+                    "name": "CPU Package",
+                    "sensor_type": "temperature",
+                    "unit": "C",
+                    "source": "hwinfo",
+                },
+                {
+                    "sensor_id": "hwinfo:temp:gpu",
+                    "name": "GPU",
+                    "sensor_type": "temperature",
+                    "unit": "C",
+                    "source": "hwinfo",
+                },
+            ]
+        },
+    )
+
+    # Enable only CPU sensor
+    client.put(
+        f"/api/devices/{device_id}/sensors/config",
+        json={"enabled": ["hwinfo:temp:cpu"]},
+    )
+
+    return device_id
+
+
+def test_push_metrics_stores_enabled_sensors(
+    client: TestClient, device_with_sensors: str, auth_headers: dict
+):
+    """Test that enabled sensor readings are stored."""
+    response = client.post(
+        f"/api/devices/{device_with_sensors}/metrics",
+        headers=auth_headers,
+        json={
+            "timestamp": "2025-01-01T10:00:00",
+            "metrics": {
+                "cpu": {"percent": 50.0},
+                "sensors": {
+                    "hwinfo:temp:cpu": 65.5,
+                    "hwinfo:temp:gpu": 80.0,
+                },
+            },
+        },
+    )
+    assert response.status_code == 200
+
+    # Query sensor metrics - should only see enabled sensor
+    response = client.get(
+        f"/api/devices/{device_with_sensors}/metrics/sensors",
+        params={
+            "start": "2025-01-01T10:00:00",
+            "end": "2025-01-01T10:01:00",
+            "resolution": "1m",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    # Only CPU sensor should be present (enabled)
+    assert len(data["sensors"]) == 1
+    assert data["sensors"][0]["sensor_id"] == "hwinfo:temp:cpu"
+    assert data["sensors"][0]["name"] == "CPU Package"
+    assert data["sensors"][0]["unit"] == "C"
+
+    # Check the data point
+    assert len(data["sensors"][0]["data"]) == 1
+    assert data["sensors"][0]["data"][0]["value"]["avg"] == 65.5
+
+
+def test_push_metrics_ignores_disabled_sensors(
+    client: TestClient, device_with_sensors: str, auth_headers: dict
+):
+    """Test that disabled sensor readings are NOT stored."""
+    # Push metrics with both sensors
+    client.post(
+        f"/api/devices/{device_with_sensors}/metrics",
+        headers=auth_headers,
+        json={
+            "timestamp": "2025-01-01T10:00:00",
+            "metrics": {
+                "cpu": {"percent": 50.0},
+                "sensors": {
+                    "hwinfo:temp:cpu": 65.5,
+                    "hwinfo:temp:gpu": 80.0,  # This is disabled
+                },
+            },
+        },
+    )
+
+    # Query sensor metrics
+    response = client.get(
+        f"/api/devices/{device_with_sensors}/metrics/sensors",
+        params={
+            "start": "2025-01-01T10:00:00",
+            "end": "2025-01-01T10:01:00",
+            "resolution": "1m",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    # GPU sensor should NOT be in results
+    sensor_ids = [s["sensor_id"] for s in data["sensors"]]
+    assert "hwinfo:temp:gpu" not in sensor_ids
+
+
+def test_get_sensor_metrics_empty_range(
+    client: TestClient, device_with_sensors: str
+):
+    """Test that empty time range returns no sensors."""
+    response = client.get(
+        f"/api/devices/{device_with_sensors}/metrics/sensors",
+        params={
+            "start": "2025-01-01T10:00:00",
+            "end": "2025-01-01T11:00:00",
+            "resolution": "1h",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    # No sensor data pushed, so no sensors in response
+    assert data["sensors"] == []
+
+
+def test_get_sensor_metrics_aggregation(
+    client: TestClient, device_with_sensors: str, auth_headers: dict
+):
+    """Test that sensor metrics are correctly aggregated."""
+    base_time = datetime(2025, 1, 1, 10, 0, 0)
+
+    # Push multiple readings in same minute bucket
+    for i in range(3):
+        timestamp = base_time + timedelta(seconds=i * 10)
+        client.post(
+            f"/api/devices/{device_with_sensors}/metrics",
+            headers=auth_headers,
+            json={
+                "timestamp": timestamp.isoformat(),
+                "metrics": {
+                    "cpu": {"percent": 50.0},
+                    "sensors": {
+                        "hwinfo:temp:cpu": 60.0 + i * 5,  # 60, 65, 70
+                    },
+                },
+            },
+        )
+
+    # Query with 1m resolution
+    response = client.get(
+        f"/api/devices/{device_with_sensors}/metrics/sensors",
+        params={
+            "start": "2025-01-01T10:00:00",
+            "end": "2025-01-01T10:01:00",
+            "resolution": "1m",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data["sensors"]) == 1
+    sensor = data["sensors"][0]
+    assert sensor["sensor_id"] == "hwinfo:temp:cpu"
+
+    # Check aggregation: avg of 60, 65, 70 = 65
+    value = sensor["data"][0]["value"]
+    assert value["avg"] == 65.0
+    assert value["min"] == 60.0
+    assert value["max"] == 70.0
+
+
+def test_get_sensor_metrics_gap_filling(
+    client: TestClient, device_with_sensors: str, auth_headers: dict
+):
+    """Test that gaps in sensor data are filled with null values."""
+    # Push at 10:00 and 10:10 (skip 10:05)
+    client.post(
+        f"/api/devices/{device_with_sensors}/metrics",
+        headers=auth_headers,
+        json={
+            "timestamp": "2025-01-01T10:00:30",
+            "metrics": {
+                "cpu": {"percent": 50.0},
+                "sensors": {"hwinfo:temp:cpu": 60.0},
+            },
+        },
+    )
+    client.post(
+        f"/api/devices/{device_with_sensors}/metrics",
+        headers=auth_headers,
+        json={
+            "timestamp": "2025-01-01T10:10:30",
+            "metrics": {
+                "cpu": {"percent": 50.0},
+                "sensors": {"hwinfo:temp:cpu": 70.0},
+            },
+        },
+    )
+
+    # Query 10:00-10:15 @ 5m resolution (should return 3 buckets)
+    response = client.get(
+        f"/api/devices/{device_with_sensors}/metrics/sensors",
+        params={
+            "start": "2025-01-01T10:00:00",
+            "end": "2025-01-01T10:15:00",
+            "resolution": "5m",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data["sensors"]) == 1
+    sensor_data = data["sensors"][0]["data"]
+    assert len(sensor_data) == 3
+
+    # Verify timestamps
+    assert sensor_data[0]["timestamp"] == "2025-01-01T10:00:00Z"
+    assert sensor_data[1]["timestamp"] == "2025-01-01T10:05:00Z"
+    assert sensor_data[2]["timestamp"] == "2025-01-01T10:10:00Z"
+
+    # First bucket has data
+    assert sensor_data[0]["value"]["avg"] == 60.0
+
+    # Second bucket is gap (null)
+    assert sensor_data[1]["value"] == {"avg": None, "min": None, "max": None}
+
+    # Third bucket has data
+    assert sensor_data[2]["value"]["avg"] == 70.0
+
+
+def test_get_sensor_metrics_device_not_found(client: TestClient):
+    """Test that nonexistent device returns 404."""
+    response = client.get(
+        "/api/devices/nonexistent-id/metrics/sensors",
+        params={
+            "start": "2025-01-01T10:00:00",
+            "end": "2025-01-01T11:00:00",
+            "resolution": "1h",
+        },
+    )
+    assert response.status_code == 404
+
+
+def test_get_sensor_metrics_invalid_resolution(
+    client: TestClient, device_with_sensors: str
+):
+    """Test that invalid resolution returns 400."""
+    response = client.get(
+        f"/api/devices/{device_with_sensors}/metrics/sensors",
+        params={
+            "start": "2025-01-01T10:00:00",
+            "end": "2025-01-01T11:00:00",
+            "resolution": "2h",
+        },
+    )
+    assert response.status_code == 400
+    assert "Invalid resolution" in response.json()["detail"]
+
+
+def test_get_sensor_metrics_end_before_start(
+    client: TestClient, device_with_sensors: str
+):
+    """Test that end before start returns 400."""
+    response = client.get(
+        f"/api/devices/{device_with_sensors}/metrics/sensors",
+        params={
+            "start": "2025-01-02T00:00:00",
+            "end": "2025-01-01T00:00:00",
+            "resolution": "1h",
+        },
+    )
+    assert response.status_code == 400
+    assert "End time must be after start time" in response.json()["detail"]
+
+
+def test_push_metrics_no_sensors_field(
+    client: TestClient, device_with_sensors: str, auth_headers: dict
+):
+    """Test that metrics without sensors field still works."""
+    response = client.post(
+        f"/api/devices/{device_with_sensors}/metrics",
+        headers=auth_headers,
+        json={
+            "metrics": {
+                "cpu": {"percent": 50.0},
+                # No sensors field
+            },
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"

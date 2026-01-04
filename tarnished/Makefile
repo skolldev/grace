@@ -14,7 +14,6 @@ build-all:
 	GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o bin/tarnished-linux-amd64 ./cmd/tarnished
 	GOOS=linux GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o bin/tarnished-linux-arm64 ./cmd/tarnished
 	GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o bin/tarnished-windows-amd64.exe ./cmd/tarnished
-	GOOS=darwin GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o bin/tarnished-darwin-amd64 ./cmd/tarnished
 	GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o bin/tarnished-darwin-arm64 ./cmd/tarnished
 
 test:

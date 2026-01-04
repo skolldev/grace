@@ -6,12 +6,25 @@ import { ButtonModule } from 'primeng/button';
 import { Select } from 'primeng/select';
 import { firstValueFrom } from 'rxjs';
 import {
+  AggregatedSensorData,
+  AggregatedSensorDataPoint,
+  AggregatedSensorMetricsResponse,
+} from '../../../core/models';
+import {
   AggregatedMetricsParams,
   MetricsService,
   Resolution,
 } from '../../../core/services/metrics.service';
 import { DeviceStore } from '../../../core/stores/device.store';
 import { ChartCard } from '../chart-card/chart-card';
+
+interface SensorChart {
+  sensor_id: string;
+  title: string;
+  type: string;
+  unit: string;
+  data: { label: string; data: { avg: number | null; min: number | null; max: number | null } }[];
+}
 
 interface Timeframe {
   timeframe: string;
@@ -29,6 +42,8 @@ export class DeviceDetail {
   private readonly router = inject(Router);
   deviceId = input<string | undefined>(undefined);
   device = computed(() => this.deviceStore.deviceById()(this.deviceId() ?? ''));
+
+  hasSensors = computed(() => this.device()?.has_sensors ?? false);
 
   isOnDetailPage = computed(() => {
     const deviceId = this.deviceId();
@@ -131,4 +146,35 @@ export class DeviceDetail {
         }))
       : []
   );
+
+  sensorMetricsResource = resource({
+    params: () => ({
+      deviceId: this.deviceId(),
+      start: this.dateRange().start,
+      end: this.dateRange().end,
+      resolution: this.timeframe().resolution,
+      hasSensors: this.hasSensors(),
+    }),
+    loader: ({ params }): Promise<AggregatedSensorMetricsResponse> =>
+      params.hasSensors && params.deviceId
+        ? firstValueFrom(
+            this.metricsService.getSensorMetrics(params.deviceId, params as AggregatedMetricsParams)
+          )
+        : Promise.resolve({ sensors: [] }),
+  });
+
+  sensorCharts = computed((): SensorChart[] => {
+    if (!this.sensorMetricsResource.hasValue()) return [];
+
+    return this.sensorMetricsResource.value().sensors.map((sensor: AggregatedSensorData) => ({
+      sensor_id: sensor.sensor_id,
+      title: `${sensor.name} (${sensor.unit})`,
+      type: sensor.sensor_type,
+      unit: sensor.unit,
+      data: sensor.data.map((point: AggregatedSensorDataPoint) => ({
+        label: point.timestamp,
+        data: point.value,
+      })),
+    }));
+  });
 }
