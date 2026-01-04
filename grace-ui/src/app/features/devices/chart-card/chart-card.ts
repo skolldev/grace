@@ -68,6 +68,7 @@ export class ChartCard {
       y: {
         min: this.type() === 'percent' ? 0 : undefined,
         max: this.type() === 'percent' ? 100 : undefined,
+        grace: this.type() === 'percent' ? undefined : '20%',
         ticks: {
           color: 'rgb(156, 163, 175)',
         },

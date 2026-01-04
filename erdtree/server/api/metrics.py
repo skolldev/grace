@@ -4,7 +4,14 @@ from sqlmodel import Session, select, text
 
 from server.core.auth import verify_api_key
 from server.core.database import get_session
-from server.models.models import Device, DeviceSensor, Metric, SensorMetric, utc_now, to_naive_utc
+from server.models.models import (
+    Device,
+    DeviceSensor,
+    Metric,
+    SensorMetric,
+    utc_now,
+    to_naive_utc,
+)
 from server.models.schemas import (
     AggregatedSensorMetricsResponse,
     MetricsPushPayload,
@@ -344,25 +351,31 @@ def get_aggregated_sensor_metrics(
             if ts in data_by_ts:
                 filled_data.append(data_by_ts[ts])
             else:
-                filled_data.append({
-                    "timestamp": datetime.fromtimestamp(ts, tz=timezone.utc)
-                    .isoformat()
-                    .replace("+00:00", "Z"),
-                    "value": null_value,
-                })
+                filled_data.append(
+                    {
+                        "timestamp": datetime.fromtimestamp(ts, tz=timezone.utc)
+                        .isoformat()
+                        .replace("+00:00", "Z"),
+                        "value": null_value,
+                    }
+                )
 
-        result_sensors.append({
-            "sensor_id": sensor_id,
-            "name": sensor_data["name"],
-            "sensor_type": sensor_data["sensor_type"],
-            "unit": sensor_data["unit"],
-            "data": filled_data,
-        })
+        result_sensors.append(
+            {
+                "sensor_id": sensor_id,
+                "name": sensor_data["name"],
+                "sensor_type": sensor_data["sensor_type"],
+                "unit": sensor_data["unit"],
+                "data": filled_data,
+            }
+        )
 
     return AggregatedSensorMetricsResponse(sensors=result_sensors)
 
 
-@router.get("/{device_id}/metrics/sensors", response_model=AggregatedSensorMetricsResponse)
+@router.get(
+    "/{device_id}/metrics/sensors", response_model=AggregatedSensorMetricsResponse
+)
 def get_sensor_metrics(
     device_id: str,
     start: datetime = Query(..., description="Start time (ISO format)"),

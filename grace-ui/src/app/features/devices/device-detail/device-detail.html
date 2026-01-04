@@ -30,7 +30,7 @@
     </div>
   </div>
   @if (metricsResource.hasValue()) {
-    <div class="grid grid-cols-2 gap-4 overflow-y-auto max-h-[calc(100vh-15rem)]">
+    <div class="grid grid-cols-3 gap-4 overflow-y-auto max-h-[calc(100vh-15rem)]">
       <grc-chart-card
         [title]="'CPU Usage'"
         [data]="cpuMetric()"

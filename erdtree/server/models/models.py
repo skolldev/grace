@@ -122,7 +122,9 @@ class SensorMetric(SQLModel, table=True):
     value: float
 
     __table_args__ = (
-        Index("idx_sensor_metric_device_sensor_ts", "device_id", "sensor_id", "timestamp"),
+        Index(
+            "idx_sensor_metric_device_sensor_ts", "device_id", "sensor_id", "timestamp"
+        ),
     )
 
     @field_serializer("timestamp")

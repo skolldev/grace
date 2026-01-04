@@ -518,9 +518,7 @@ def test_push_metrics_ignores_disabled_sensors(
     assert "hwinfo:temp:gpu" not in sensor_ids
 
 
-def test_get_sensor_metrics_empty_range(
-    client: TestClient, device_with_sensors: str
-):
+def test_get_sensor_metrics_empty_range(client: TestClient, device_with_sensors: str):
     """Test that empty time range returns no sensors."""
     response = client.get(
         f"/api/devices/{device_with_sensors}/metrics/sensors",

@@ -8,7 +8,14 @@ from server.core.database import get_session, set_engine_override
 from server.core import auth
 
 # Import all models to ensure they're registered before create_all()
-from server.models.models import Device, Metric, Log, Setting, DeviceSensor, SensorMetric  # noqa: F401
+from server.models.models import (
+    Device,
+    Metric,
+    Log,
+    Setting,
+    DeviceSensor,
+    SensorMetric,
+)  # noqa: F401
 
 
 @pytest.fixture(name="session")
