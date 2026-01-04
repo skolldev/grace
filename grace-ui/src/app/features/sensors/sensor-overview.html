@@ -43,7 +43,46 @@
           <th pSortableColumn="sensor_type">Type <p-sortIcon field="sensor_type" /></th>
           <th pSortableColumn="unit" class="w-32">Unit <p-sortIcon field="unit" /></th>
           <th pSortableColumn="source" class="w-40">Source <p-sortIcon field="source" /></th>
-          <th pSortableColumn="enabled" class="w-32">Status <p-sortIcon field="enabled" /></th>
+          <th pSortableColumn="enabled" class="w-40">Status <p-sortIcon field="enabled" /></th>
+          <th class="w-32">Actions</th>
+        </tr>
+        <tr>
+          <th></th>
+          <th>
+            <p-columnFilter field="sensor_type" matchMode="equals" [showMenu]="false">
+              <ng-template #filter let-value let-filter="filterCallback">
+                <p-select
+                  [ngModel]="value"
+                  [options]="typeOptions"
+                  (onChange)="filter($event.value)"
+                  placeholder="All"
+                  [showClear]="true"
+                  [style]="{ 'min-width': '8rem' }"
+                />
+              </ng-template>
+            </p-columnFilter>
+          </th>
+          <th></th>
+          <th></th>
+          <th>
+            <p-columnFilter field="enabled" matchMode="equals" [showMenu]="false">
+              <ng-template #filter let-value let-filter="filterCallback">
+                <p-select
+                  [ngModel]="value"
+                  [options]="statusOptions"
+                  (onChange)="filter($event.value)"
+                  placeholder="All"
+                  [showClear]="true"
+                  [style]="{ 'min-width': '8rem' }"
+                >
+                  <ng-template let-option #item>
+                    <p-tag [value]="option.label" [severity]="getEnabledSeverity(option.value)" />
+                  </ng-template>
+                </p-select>
+              </ng-template>
+            </p-columnFilter>
+          </th>
+          <th></th>
         </tr>
       </ng-template>
       <ng-template pTemplate="body" let-sensor>
@@ -58,11 +97,21 @@
               [severity]="getEnabledSeverity(sensor.enabled)"
             />
           </td>
+          <td>
+            <p-button
+              [label]="sensor.enabled ? 'Disable' : 'Enable'"
+              [severity]="sensor.enabled ? 'danger' : 'success'"
+              [outlined]="true"
+              size="small"
+              [loading]="updating()"
+              (click)="toggleSensor(sensor)"
+            />
+          </td>
         </tr>
       </ng-template>
       <ng-template pTemplate="emptymessage">
         <tr>
-          <td colspan="5" class="text-center">No sensors found for this device.</td>
+          <td colspan="6" class="text-center">No sensors found for this device.</td>
         </tr>
       </ng-template>
     </p-table>
