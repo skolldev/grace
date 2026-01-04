@@ -12,6 +12,10 @@ export const routes: Routes = [
   {
     path: 'devices/:deviceId',
     loadComponent: () =>
-      import('./features/devices/device-preview/device-detail').then((m) => m.DeviceDetail),
+      import('./features/devices/device-detail/device-detail').then((m) => m.DeviceDetail),
+  },
+  {
+    path: 'devices/:deviceId/sensors',
+    loadComponent: () => import('./features/sensors/sensor-overview').then((m) => m.SensorOverview),
   },
 ];

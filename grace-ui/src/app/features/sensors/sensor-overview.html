@@ -1,0 +1,70 @@
+<div
+  class="flex flex-col gap-8 flex-1 overflow-hidden rounded-lg bg-content-900 border-content-700 border p-4"
+>
+  <div class="flex items-center justify-between">
+    <h2 class="text-2xl font-bold">Sensors - {{ device()?.hostname }}</h2>
+    <p-button
+      label="Back to Device"
+      icon="pi pi-arrow-left"
+      [routerLink]="['/devices', deviceId()]"
+      severity="secondary"
+    />
+  </div>
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <p-table
+      #dataTable
+      [value]="sensors()"
+      [loading]="loading()"
+      scrollHeight="flex"
+      [scrollable]="true"
+      [paginator]="true"
+      [rows]="25"
+      [globalFilterFields]="['name']"
+      [rowsPerPageOptions]="[10, 25, 50, 100]"
+      sortField="name"
+      [sortOrder]="1"
+    >
+      <ng-template #caption>
+        <p-iconfield iconPosition="left">
+          <p-inputicon>
+            <i class="pi pi-search"></i>
+          </p-inputicon>
+          <input
+            pInputText
+            type="text"
+            (input)="dataTable.filterGlobal($event.target.value, 'contains')"
+            placeholder="Search"
+          />
+        </p-iconfield>
+      </ng-template>
+      <ng-template pTemplate="header">
+        <tr>
+          <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
+          <th pSortableColumn="sensor_type">Type <p-sortIcon field="sensor_type" /></th>
+          <th pSortableColumn="unit" class="w-32">Unit <p-sortIcon field="unit" /></th>
+          <th pSortableColumn="source" class="w-40">Source <p-sortIcon field="source" /></th>
+          <th pSortableColumn="enabled" class="w-32">Status <p-sortIcon field="enabled" /></th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-sensor>
+        <tr>
+          <td>{{ sensor.display_name || sensor.name }}</td>
+          <td>{{ sensor.sensor_type }}</td>
+          <td>{{ sensor.unit }}</td>
+          <td>{{ sensor.source }}</td>
+          <td>
+            <p-tag
+              [value]="getEnabledLabel(sensor.enabled)"
+              [severity]="getEnabledSeverity(sensor.enabled)"
+            />
+          </td>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="5" class="text-center">No sensors found for this device.</td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>

@@ -21,6 +21,7 @@ export interface Device {
   ip_address: string | null;
   registered_at: string;
   last_seen_at: string;
+  has_sensors: boolean;
 }
 
 export interface LatestMetric {

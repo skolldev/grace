@@ -51,6 +51,11 @@ def report_sensors(
             )
             session.add(new_sensor)
 
+    # Set has_sensors flag on device if not already set
+    if not device.has_sensors:
+        device.has_sensors = True
+        session.add(device)
+
     session.commit()
     log_info(f"Device {device_id} reported {len(request.sensors)} sensors", "sensors")
 

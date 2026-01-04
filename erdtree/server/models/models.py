@@ -49,6 +49,7 @@ class Device(SQLModel, table=True):
     ip_address: Optional[str] = None
     registered_at: datetime = Field(default_factory=utc_now)
     last_seen_at: datetime = Field(default_factory=utc_now)
+    has_sensors: bool = Field(default=False)
 
     @field_serializer("registered_at", "last_seen_at")
     def serialize_datetime(self, dt: datetime) -> str:

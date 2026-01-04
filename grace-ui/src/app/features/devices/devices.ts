@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DeviceStore } from '../../core/stores/device.store';
-import { DeviceDetail } from './device-preview/device-detail';
+import { DeviceDetail } from './device-detail/device-detail';
 import { DeviceTable } from './device-table/device-table';
 
 @Component({

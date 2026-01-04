@@ -44,6 +44,7 @@ class DeviceResponse(BaseModel):
     ip_address: Optional[str]
     registered_at: datetime
     last_seen_at: datetime
+    has_sensors: bool = False
 
     @field_serializer("registered_at", "last_seen_at")
     def serialize_datetime(self, dt: datetime) -> str:

@@ -1,0 +1,60 @@
+@if (device(); as device) {
+  <div class="rounded-lg bg-content-900 border-content-700 border p-4 mb-4">
+    <h2 class="text-2xl font-bold">{{ device.hostname }}</h2>
+    <div class="flex flex-1 gap-2 items-center">
+      <p>{{ isDeviceOnline() ? 'Online' : 'Offline' }}</p>
+      <p><i class="pi pi-os"></i> {{ device.os }}</p>
+      <p><i class="pi pi-arch"></i> {{ device.arch }}</p>
+      <p>{{ device.ip_address }}</p>
+      @if (!isDeviceOnline()) {
+        <p>Last seen: {{ device.last_seen_at | date: 'short' }}</p>
+      }
+
+      <p-select
+        [ngModel]="timeframe()"
+        (ngModelChange)="timeframe.set($event)"
+        [options]="timeframeConfig"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Timeframe"
+        class="ml-auto w-40"
+      />
+      @if (device.has_sensors) {
+        <a pButton [routerLink]="['/devices', device.id, 'sensors']"
+          ><span pButtonLabel>Go to sensors</span></a
+        >
+      }
+      @if (!isOnDetailPage()) {
+        <a pButton [routerLink]="['/devices', device.id]"><span pButtonLabel>Go to device</span></a>
+      }
+    </div>
+  </div>
+  @if (metricsResource.hasValue()) {
+    <div class="grid grid-cols-2 gap-4 overflow-y-auto max-h-[calc(100vh-15rem)]">
+      <grc-chart-card
+        [title]="'CPU Usage'"
+        [data]="cpuMetric()"
+        [type]="'percent'"
+      ></grc-chart-card>
+      <grc-chart-card
+        [title]="'RAM Usage'"
+        [data]="ramMetric()"
+        [type]="'percent'"
+      ></grc-chart-card>
+      <grc-chart-card
+        [title]="'Network RX Mbps'"
+        [data]="networkRxMetric()"
+        [type]="'absolute'"
+      ></grc-chart-card>
+      <grc-chart-card
+        [title]="'Network TX Mbps'"
+        [data]="networkTxMetric()"
+        [type]="'absolute'"
+      ></grc-chart-card>
+    </div>
+  } @else {
+    <p>Loading metrics...</p>
+  }
+} @else {
+  <p>No device selected</p>
+}

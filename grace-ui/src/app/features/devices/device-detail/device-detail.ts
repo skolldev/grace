@@ -1,7 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, input, resource, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { Select } from 'primeng/select';
 import { firstValueFrom } from 'rxjs';
@@ -26,8 +26,14 @@ interface Timeframe {
 export class DeviceDetail {
   private readonly deviceStore = inject(DeviceStore);
   private readonly metricsService = inject(MetricsService);
+  private readonly router = inject(Router);
   deviceId = input<string | undefined>(undefined);
   device = computed(() => this.deviceStore.deviceById()(this.deviceId() ?? ''));
+
+  isOnDetailPage = computed(() => {
+    const deviceId = this.deviceId();
+    return deviceId ? this.router.url.includes(`/devices/${deviceId}`) : false;
+  });
 
   isDeviceOnline = computed(() => {
     const lastSeen = this.device()?.last_seen_at;
@@ -69,12 +75,15 @@ export class DeviceDetail {
 
   metricsResource = resource({
     params: () => ({
+      deviceId: this.deviceId(),
       start: this.dateRange().start,
       end: this.dateRange().end,
       resolution: this.timeframe().resolution,
     }),
-    loader: ({ params }: { params: AggregatedMetricsParams }) =>
-      firstValueFrom(this.metricsService.getByDeviceId(this.deviceId() ?? '', params)),
+    loader: ({ params }) =>
+      firstValueFrom(
+        this.metricsService.getByDeviceId(params.deviceId!, params as AggregatedMetricsParams)
+      ),
   });
 
   cpuMetric = computed(() =>
@@ -93,33 +102,33 @@ export class DeviceDetail {
       : []
   );
 
+  private bytesToMegabits(bytes: number | null): number | null {
+    return bytes !== null ? (bytes * 8) / 1000000 : null;
+  }
+
   networkRxMetric = computed(() =>
     this.metricsResource.hasValue()
-      ? this.metricsResource
-          .value()
-          .map((metric) => ({
-            label: metric.timestamp,
-            data: {
-              avg: metric.data.network.rx_sec.avg !== null ? (metric.data.network.rx_sec.avg * 8) / 1000000 : null,
-              min: metric.data.network.rx_sec.min !== null ? (metric.data.network.rx_sec.min * 8) / 1000000 : null,
-              max: metric.data.network.rx_sec.max !== null ? (metric.data.network.rx_sec.max * 8) / 1000000 : null,
-            },
-          }))
+      ? this.metricsResource.value().map((metric) => ({
+          label: metric.timestamp,
+          data: {
+            avg: this.bytesToMegabits(metric.data.network.rx_sec.avg),
+            min: this.bytesToMegabits(metric.data.network.rx_sec.min),
+            max: this.bytesToMegabits(metric.data.network.rx_sec.max),
+          },
+        }))
       : []
   );
 
   networkTxMetric = computed(() =>
     this.metricsResource.hasValue()
-      ? this.metricsResource
-          .value()
-          .map((metric) => ({
-            label: metric.timestamp,
-            data: {
-              avg: metric.data.network.tx_sec.avg !== null ? (metric.data.network.tx_sec.avg * 8) / 1000000 : null,
-              min: metric.data.network.tx_sec.min !== null ? (metric.data.network.tx_sec.min * 8) / 1000000 : null,
-              max: metric.data.network.tx_sec.max !== null ? (metric.data.network.tx_sec.max * 8) / 1000000 : null,
-            },
-          }))
+      ? this.metricsResource.value().map((metric) => ({
+          label: metric.timestamp,
+          data: {
+            avg: this.bytesToMegabits(metric.data.network.tx_sec.avg),
+            min: this.bytesToMegabits(metric.data.network.tx_sec.min),
+            max: this.bytesToMegabits(metric.data.network.tx_sec.max),
+          },
+        }))
       : []
   );
 }

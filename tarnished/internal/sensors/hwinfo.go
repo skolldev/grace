@@ -194,11 +194,6 @@ func (r *Reader) Read() ([]SensorEntry, error) {
 		sensorIndex := binary.LittleEndian.Uint32(entryData[4:8])
 
 		nameOrig := readCString(entryData[12:140])
-		nameUser := readCString(entryData[140:268])
-		entryName := nameUser
-		if entryName == "" {
-			entryName = nameOrig
-		}
 
 		unit := readCString(entryData[268:284])
 		value := *(*float64)(unsafe.Pointer(&entryData[284]))
@@ -209,7 +204,9 @@ func (r *Reader) Read() ([]SensorEntry, error) {
 			sensorName = sensors[sensorIndex].name
 		}
 
-		sensorID := buildSensorID(sensorType.String(), sensorName, entryName)
+		entryName := sensorName + " " + nameOrig
+
+		sensorID := buildSensorID(sensorType.String(), sensorName, nameOrig)
 
 		entries = append(entries, SensorEntry{
 			ID:         sensorID,
@@ -231,11 +228,6 @@ func readCString(data []byte) string {
 		n++
 	}
 	return strings.TrimSpace(string(data[:n]))
-}
-
-func readFloat64(data []byte) float64 {
-	bits := binary.LittleEndian.Uint64(data)
-	return *(*float64)(unsafe.Pointer(&bits))
 }
 
 var sanitizeRegex = regexp.MustCompile(`[^a-z0-9_]`)
