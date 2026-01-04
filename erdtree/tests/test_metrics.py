@@ -519,7 +519,7 @@ def test_push_metrics_ignores_disabled_sensors(
 
 
 def test_get_sensor_metrics_empty_range(client: TestClient, device_with_sensors: str):
-    """Test that empty time range returns no sensors."""
+    """Test that empty time range returns sensors with null data."""
     response = client.get(
         f"/api/devices/{device_with_sensors}/metrics/sensors",
         params={
@@ -531,8 +531,15 @@ def test_get_sensor_metrics_empty_range(client: TestClient, device_with_sensors:
     assert response.status_code == 200
     data = response.json()
 
-    # No sensor data pushed, so no sensors in response
-    assert data["sensors"] == []
+    # Enabled sensors are returned even without data (with null values)
+    assert len(data["sensors"]) == 1
+    sensor = data["sensors"][0]
+    assert sensor["sensor_id"] == "hwinfo:temp:cpu"
+    assert sensor["name"] == "CPU Package"
+
+    # Data points exist but have null values
+    assert len(sensor["data"]) == 1
+    assert sensor["data"][0]["value"] == {"avg": None, "min": None, "max": None}
 
 
 def test_get_sensor_metrics_aggregation(

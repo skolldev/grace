@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel import Session, select, text
+from sqlmodel import Session, select, text, bindparam
 
 from server.core.auth import verify_api_key
 from server.core.database import get_session
@@ -89,9 +89,7 @@ def get_aggregated_metrics(
     data_by_ts = {}
     for row in rows:
         data_by_ts[row.bucket_ts] = {
-            "timestamp": datetime.fromtimestamp(row.bucket_ts, tz=timezone.utc)
-            .isoformat()
-            .replace("+00:00", "Z"),
+            "timestamp": _format_ts(row.bucket_ts),
             "data": {
                 "cpu": {"percent": _agg(row.cpu_avg, row.cpu_min, row.cpu_max)},
                 "ram": {"percent": _agg(row.ram_avg, row.ram_min, row.ram_max)},
@@ -105,6 +103,13 @@ def get_aggregated_metrics(
     # Generate all expected bucket timestamps and fill gaps with nulls
     expected_timestamps = _generate_bucket_timestamps(start, end, resolution)
     return [data_by_ts.get(ts) or _null_bucket(ts) for ts in expected_timestamps]
+
+
+def _format_ts(ts: int) -> str:
+    """Format Unix timestamp as ISO string with Z suffix."""
+    return (
+        datetime.fromtimestamp(ts, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+    )
 
 
 def _agg(avg: float | None, min_: float | None, max_: float | None) -> dict:
@@ -146,11 +151,9 @@ def _generate_bucket_timestamps(
 
 def _null_bucket(timestamp: int) -> dict:
     """Create a bucket with null values for all metrics."""
-    null_agg = {"avg": None, "min": None, "max": None}
+    null_agg = _agg(None, None, None)
     return {
-        "timestamp": datetime.fromtimestamp(timestamp, tz=timezone.utc)
-        .isoformat()
-        .replace("+00:00", "Z"),
+        "timestamp": _format_ts(timestamp),
         "data": {
             "cpu": {"percent": null_agg},
             "ram": {"percent": null_agg},
@@ -276,20 +279,34 @@ def get_aggregated_sensor_metrics(
 ) -> AggregatedSensorMetricsResponse:
     """Fetch sensor metrics and aggregate into time buckets, grouped by sensor."""
     bucket_seconds = RESOLUTION_SECONDS[resolution]
-    start_str = start.strftime("%Y-%m-%d %H:%M:%S")
-    end_str = end.strftime("%Y-%m-%d %H:%M:%S")
 
-    # Get sensor metadata for display names and units
-    sensors = session.exec(
-        select(DeviceSensor)
-        .where(DeviceSensor.device_id == device_id)
-        .where(DeviceSensor.enabled)
-    ).all()
-    sensor_info = {s.sensor_id: s for s in sensors}
+    sensors_query = text(
+        """
+        SELECT sensor_id, COALESCE(display_name, name) as name, sensor_type, COALESCE(unit, '') as unit
+        FROM device_sensors
+        WHERE device_id = :device_id AND enabled = 1
+    """
+    )
 
-    # Aggregate sensor data
-    query = text("""
-        SELECT
+    sensor_map = {
+        row.sensor_id: {
+            "sensor_id": row.sensor_id,
+            "name": row.name,
+            "sensor_type": row.sensor_type,
+            "unit": row.unit,
+            "data_points": {},
+        }
+        for row in session.execute(sensors_query, {"device_id": device_id}).fetchall()
+    }
+
+    if not sensor_map:
+        return AggregatedSensorMetricsResponse(sensors=[])
+
+    enabled_sensor_ids = list(sensor_map.keys())
+
+    metrics_query = text(
+        """
+        SELECT 
             sensor_id,
             (unixepoch(timestamp) / :bucket) * :bucket as bucket_ts,
             AVG(value) as avg,
@@ -297,80 +314,57 @@ def get_aggregated_sensor_metrics(
             MAX(value) as max
         FROM sensor_metrics
         WHERE device_id = :device_id
-          AND timestamp >= :start_ts
-          AND timestamp < :end_ts
+          AND sensor_id IN :sensor_ids
+          AND timestamp >= :start
+          AND timestamp < :end
         GROUP BY sensor_id, bucket_ts
-        ORDER BY sensor_id, bucket_ts
-    """)
+    """
+    )
 
-    result = session.execute(
-        query,
+    metrics_query = metrics_query.bindparams(bindparam("sensor_ids", expanding=True))
+
+    metrics_rows = session.execute(
+        metrics_query,
         {
             "bucket": bucket_seconds,
             "device_id": device_id,
-            "start_ts": start_str,
-            "end_ts": end_str,
+            "start": start,
+            "end": end,
+            "sensor_ids": enabled_sensor_ids,
         },
-    )
-    rows = result.fetchall()
+    ).fetchall()
 
-    # Group by sensor
-    sensors_data: dict = {}
-    for row in rows:
-        sensor_id = row.sensor_id
-        if sensor_id not in sensors_data:
-            info = sensor_info.get(sensor_id)
-            sensors_data[sensor_id] = {
-                "sensor_id": sensor_id,
-                "name": (info.display_name or info.name) if info else sensor_id,
-                "sensor_type": info.sensor_type if info else "unknown",
-                "unit": info.unit if info else "",
-                "data": {},
-            }
+    for row in metrics_rows:
+        if row.sensor_id in sensor_map:
+            sensor_map[row.sensor_id]["data_points"][row.bucket_ts] = _agg(
+                row.avg, row.min, row.max
+            )
 
-        sensors_data[sensor_id]["data"][row.bucket_ts] = {
-            "timestamp": datetime.fromtimestamp(row.bucket_ts, tz=timezone.utc)
-            .isoformat()
-            .replace("+00:00", "Z"),
-            "value": {
-                "avg": round(row.avg, 2) if row.avg is not None else None,
-                "min": round(row.min, 2) if row.min is not None else None,
-                "max": round(row.max, 2) if row.max is not None else None,
-            },
-        }
+    expected_ts = _generate_bucket_timestamps(start, end, resolution)
+    null_val = _agg(None, None, None)
 
-    # Fill gaps with null values for each sensor
-    expected_timestamps = _generate_bucket_timestamps(start, end, resolution)
-    null_value = {"avg": None, "min": None, "max": None}
+    formatted_sensors = []
 
-    result_sensors = []
-    for sensor_id, sensor_data in sensors_data.items():
-        data_by_ts = sensor_data["data"]
-        filled_data = []
-        for ts in expected_timestamps:
-            if ts in data_by_ts:
-                filled_data.append(data_by_ts[ts])
-            else:
-                filled_data.append(
-                    {
-                        "timestamp": datetime.fromtimestamp(ts, tz=timezone.utc)
-                        .isoformat()
-                        .replace("+00:00", "Z"),
-                        "value": null_value,
-                    }
-                )
-
-        result_sensors.append(
+    for sensor in sensor_map.values():
+        series = [
             {
-                "sensor_id": sensor_id,
-                "name": sensor_data["name"],
-                "sensor_type": sensor_data["sensor_type"],
-                "unit": sensor_data["unit"],
-                "data": filled_data,
+                "timestamp": _format_ts(ts),
+                "value": sensor["data_points"].get(ts, null_val),
+            }
+            for ts in expected_ts
+        ]
+
+        formatted_sensors.append(
+            {
+                "sensor_id": sensor["sensor_id"],
+                "name": sensor["name"],
+                "sensor_type": sensor["sensor_type"],
+                "unit": sensor["unit"],
+                "data": series,
             }
         )
 
-    return AggregatedSensorMetricsResponse(sensors=result_sensors)
+    return AggregatedSensorMetricsResponse(sensors=formatted_sensors)
 
 
 @router.get(
