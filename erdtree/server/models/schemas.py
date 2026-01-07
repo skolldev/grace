@@ -110,20 +110,34 @@ class SensorConfigResponse(BaseModel):
     enabled: list[str]  # List of enabled sensor_ids
 
 
-# Aggregated Sensor Metrics
-class AggregatedSensorValue(BaseModel):
+# Aggregated Metrics (shared value type)
+class AggregatedValue(BaseModel):
     avg: float | None
     min: float | None
     max: float | None
 
 
-class AggregatedSensorDataPoint(BaseModel):
-    timestamp: datetime
-    value: AggregatedSensorValue
+# Aggregated Device Metrics
+class AggregatedNetworkData(BaseModel):
+    rx_sec: AggregatedValue
+    tx_sec: AggregatedValue
 
-    @field_serializer("timestamp")
-    def serialize_datetime(self, dt: datetime) -> str:
-        return _serialize_utc_datetime(dt)
+
+class AggregatedMetricData(BaseModel):
+    cpu: dict[str, AggregatedValue]  # {"percent": AggregatedValue}
+    ram: dict[str, AggregatedValue]  # {"percent": AggregatedValue}
+    network: AggregatedNetworkData
+
+
+class AggregatedMetricDataPoint(BaseModel):
+    timestamp: str
+    data: AggregatedMetricData | None
+
+
+# Aggregated Sensor Metrics
+class AggregatedSensorDataPoint(BaseModel):
+    timestamp: str
+    value: AggregatedValue
 
 
 class AggregatedSensorData(BaseModel):

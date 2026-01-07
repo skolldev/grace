@@ -111,6 +111,65 @@ def test_get_metrics_end_before_start(client: TestClient, device_id: str):
     assert "End time must be after start time" in response.json()["detail"]
 
 
+def test_get_metrics_time_range_limit(client: TestClient, device_id: str):
+    """Test that time range exceeding limit returns 400."""
+    # 1m resolution allows max 1 day, request 2 days
+    response = client.get(
+        f"/api/devices/{device_id}/metrics",
+        params={
+            "start": "2025-01-01T00:00:00",
+            "end": "2025-01-03T00:00:00",
+            "resolution": "1m",
+        },
+    )
+    assert response.status_code == 400
+    assert "Time range too large" in response.json()["detail"]
+    assert "1 day" in response.json()["detail"]
+
+
+def test_get_metrics_time_range_at_limit(client: TestClient, device_id: str):
+    """Test that time range exactly at limit succeeds."""
+    # 1m resolution allows max 1 day, request exactly 1 day
+    response = client.get(
+        f"/api/devices/{device_id}/metrics",
+        params={
+            "start": "2025-01-01T00:00:00",
+            "end": "2025-01-02T00:00:00",
+            "resolution": "1m",
+        },
+    )
+    assert response.status_code == 200
+
+
+def test_get_metrics_time_range_under_limit(client: TestClient, device_id: str):
+    """Test that time range under limit succeeds."""
+    # 1m resolution allows max 1 day, request 12 hours
+    response = client.get(
+        f"/api/devices/{device_id}/metrics",
+        params={
+            "start": "2025-01-01T00:00:00",
+            "end": "2025-01-01T12:00:00",
+            "resolution": "1m",
+        },
+    )
+    assert response.status_code == 200
+
+
+def test_get_sensor_metrics_time_range_limit(client: TestClient, device_id: str):
+    """Test that sensor metrics time range limit works."""
+    # 1m resolution allows max 1 day, request 2 days
+    response = client.get(
+        f"/api/devices/{device_id}/metrics/sensors",
+        params={
+            "start": "2025-01-01T00:00:00",
+            "end": "2025-01-03T00:00:00",
+            "resolution": "1m",
+        },
+    )
+    assert response.status_code == 400
+    assert "Time range too large" in response.json()["detail"]
+
+
 def test_get_metrics_device_not_found(client: TestClient):
     """Test that nonexistent device returns 404."""
     response = client.get(

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select, text, bindparam
@@ -13,7 +14,12 @@ from server.models.models import (
     to_naive_utc,
 )
 from server.models.schemas import (
+    AggregatedMetricData,
+    AggregatedMetricDataPoint,
+    AggregatedNetworkData,
+    AggregatedSensorDataPoint,
     AggregatedSensorMetricsResponse,
+    AggregatedValue,
     MetricsPushPayload,
     MetricsResponse,
 )
@@ -30,7 +36,87 @@ RESOLUTION_SECONDS = {
 }
 VALID_RESOLUTIONS = set(RESOLUTION_SECONDS.keys())
 
+# Maximum time range per resolution (in seconds) to prevent excessive queries
+MAX_RANGE_SECONDS = {
+    "1m": 86400,  # 1 day
+    "5m": 86400 * 3,  # 3 days
+    "15m": 86400 * 7,  # 1 week
+    "1h": 86400 * 30,  # 1 month
+    "6h": 86400 * 90,  # 3 months
+    "1d": 86400 * 365,  # 1 year
+}
+
 router = APIRouter()
+
+
+@dataclass
+class ValidatedMetricsParams:
+    """Validated parameters for metrics queries."""
+
+    device: Device
+    start: datetime
+    end: datetime
+    resolution: str
+    session: Session
+
+
+def validate_metrics_params(
+    device_id: str,
+    start: datetime = Query(..., description="Start time (ISO format)"),
+    end: datetime = Query(..., description="End time (ISO format)"),
+    resolution: str = Query(
+        ..., description="Aggregation bucket: 1m, 5m, 15m, 1h, 6h, 1d"
+    ),
+    session: Session = Depends(get_session),
+) -> ValidatedMetricsParams:
+    """Dependency that validates common metrics query parameters."""
+    # Verify device exists
+    device = session.get(Device, device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    # Validate resolution
+    if resolution not in VALID_RESOLUTIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid resolution. Valid values: {', '.join(sorted(VALID_RESOLUTIONS))}",
+        )
+
+    # Normalize to naive UTC
+    start = to_naive_utc(start)
+    end = to_naive_utc(end)
+
+    # Validate time range
+    if end <= start:
+        raise HTTPException(
+            status_code=400,
+            detail="End time must be after start time",
+        )
+
+    # Check maximum time range for resolution
+    max_range = MAX_RANGE_SECONDS[resolution]
+    range_seconds = (end - start).total_seconds()
+    if range_seconds > max_range:
+        max_range_desc = _format_duration(max_range)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Time range too large for {resolution} resolution. Maximum: {max_range_desc}",
+        )
+
+    return ValidatedMetricsParams(device, start, end, resolution, session)
+
+
+def _format_duration(seconds: int) -> str:
+    """Format duration in seconds to human-readable string."""
+    if seconds >= 86400:
+        days = seconds // 86400
+        return f"{days} day{'s' if days > 1 else ''}"
+    elif seconds >= 3600:
+        hours = seconds // 3600
+        return f"{hours} hour{'s' if hours > 1 else ''}"
+    else:
+        minutes = seconds // 60
+        return f"{minutes} minute{'s' if minutes > 1 else ''}"
 
 
 def get_aggregated_metrics(
@@ -39,7 +125,7 @@ def get_aggregated_metrics(
     start: datetime,
     end: datetime,
     resolution: str,
-) -> list[dict]:
+) -> list[AggregatedMetricDataPoint]:
     """Fetch metrics and aggregate into time buckets."""
     bucket_seconds = RESOLUTION_SECONDS[resolution]
 
@@ -86,19 +172,19 @@ def get_aggregated_metrics(
     rows = result.fetchall()
 
     # Build lookup dict from SQL results
-    data_by_ts = {}
+    data_by_ts: dict[int, AggregatedMetricDataPoint] = {}
     for row in rows:
-        data_by_ts[row.bucket_ts] = {
-            "timestamp": _format_ts(row.bucket_ts),
-            "data": {
-                "cpu": {"percent": _agg(row.cpu_avg, row.cpu_min, row.cpu_max)},
-                "ram": {"percent": _agg(row.ram_avg, row.ram_min, row.ram_max)},
-                "network": {
-                    "rx_sec": _agg(row.net_rx_avg, row.net_rx_min, row.net_rx_max),
-                    "tx_sec": _agg(row.net_tx_avg, row.net_tx_min, row.net_tx_max),
-                },
-            },
-        }
+        data_by_ts[row.bucket_ts] = AggregatedMetricDataPoint(
+            timestamp=_format_ts(row.bucket_ts),
+            data=AggregatedMetricData(
+                cpu={"percent": _agg(row.cpu_avg, row.cpu_min, row.cpu_max)},
+                ram={"percent": _agg(row.ram_avg, row.ram_min, row.ram_max)},
+                network=AggregatedNetworkData(
+                    rx_sec=_agg(row.net_rx_avg, row.net_rx_min, row.net_rx_max),
+                    tx_sec=_agg(row.net_tx_avg, row.net_tx_min, row.net_tx_max),
+                ),
+            ),
+        )
 
     # Generate all expected bucket timestamps and fill gaps with nulls
     expected_timestamps = _generate_bucket_timestamps(start, end, resolution)
@@ -112,15 +198,15 @@ def _format_ts(ts: int) -> str:
     )
 
 
-def _agg(avg: float | None, min_: float | None, max_: float | None) -> dict:
+def _agg(avg: float | None, min_: float | None, max_: float | None) -> AggregatedValue:
     """Return aggregated values with consistent structure (nulls for missing data)."""
     if avg is None:
-        return {"avg": None, "min": None, "max": None}
-    return {
-        "avg": round(avg, 2),
-        "min": round(min_, 2),
-        "max": round(max_, 2),
-    }
+        return AggregatedValue(avg=None, min=None, max=None)
+    return AggregatedValue(
+        avg=round(avg, 2),
+        min=round(min_, 2),
+        max=round(max_, 2),
+    )
 
 
 def _generate_bucket_timestamps(
@@ -149,20 +235,17 @@ def _generate_bucket_timestamps(
     return timestamps
 
 
-def _null_bucket(timestamp: int) -> dict:
+def _null_bucket(timestamp: int) -> AggregatedMetricDataPoint:
     """Create a bucket with null values for all metrics."""
     null_agg = _agg(None, None, None)
-    return {
-        "timestamp": _format_ts(timestamp),
-        "data": {
-            "cpu": {"percent": null_agg},
-            "ram": {"percent": null_agg},
-            "network": {
-                "rx_sec": null_agg,
-                "tx_sec": null_agg,
-            },
-        },
-    }
+    return AggregatedMetricDataPoint(
+        timestamp=_format_ts(timestamp),
+        data=AggregatedMetricData(
+            cpu={"percent": null_agg},
+            ram={"percent": null_agg},
+            network=AggregatedNetworkData(rx_sec=null_agg, tx_sec=null_agg),
+        ),
+    )
 
 
 @router.post("/{device_id}/metrics", response_model=MetricsResponse)
@@ -234,40 +317,14 @@ def push_metrics(
     return MetricsResponse(status="ok")
 
 
-@router.get("/{device_id}/metrics")
+@router.get("/{device_id}/metrics", response_model=list[AggregatedMetricDataPoint])
 def get_metrics(
-    device_id: str,
-    start: datetime = Query(..., description="Start time (ISO format)"),
-    end: datetime = Query(..., description="End time (ISO format)"),
-    resolution: str = Query(
-        ..., description="Aggregation bucket: 1m, 5m, 15m, 1h, 6h, 1d"
-    ),
-    session: Session = Depends(get_session),
-):
-    # Verify device exists
-    device = session.get(Device, device_id)
-    if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
-
-    # Validate resolution
-    if resolution not in VALID_RESOLUTIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid resolution. Valid values: {', '.join(sorted(VALID_RESOLUTIONS))}",
-        )
-
-    # Normalize start and end to naive UTC
-    start = to_naive_utc(start)
-    end = to_naive_utc(end)
-
-    # Validate time range
-    if end <= start:
-        raise HTTPException(
-            status_code=400,
-            detail="End time must be after start time",
-        )
-
-    return get_aggregated_metrics(session, device_id, start, end, resolution)
+    params: ValidatedMetricsParams = Depends(validate_metrics_params),
+) -> list[AggregatedMetricDataPoint]:
+    """Get aggregated metrics for a device."""
+    return get_aggregated_metrics(
+        params.session, params.device.id, params.start, params.end, params.resolution
+    )
 
 
 def get_aggregated_sensor_metrics(
@@ -336,21 +393,25 @@ def get_aggregated_sensor_metrics(
 
     for row in metrics_rows:
         if row.sensor_id in sensor_map:
-            sensor_map[row.sensor_id]["data_points"][row.bucket_ts] = _agg(
-                row.avg, row.min, row.max
+            sensor_map[row.sensor_id]["data_points"][row.bucket_ts] = (
+                AggregatedValue(
+                    avg=round(row.avg, 2) if row.avg is not None else None,
+                    min=round(row.min, 2) if row.min is not None else None,
+                    max=round(row.max, 2) if row.max is not None else None,
+                )
             )
 
     expected_ts = _generate_bucket_timestamps(start, end, resolution)
-    null_val = _agg(None, None, None)
+    null_val = AggregatedValue(avg=None, min=None, max=None)
 
     formatted_sensors = []
 
     for sensor in sensor_map.values():
         series = [
-            {
-                "timestamp": _format_ts(ts),
-                "value": sensor["data_points"].get(ts, null_val),
-            }
+            AggregatedSensorDataPoint(
+                timestamp=_format_ts(ts),
+                value=sensor["data_points"].get(ts, null_val),
+            )
             for ts in expected_ts
         ]
 
@@ -371,32 +432,9 @@ def get_aggregated_sensor_metrics(
     "/{device_id}/metrics/sensors", response_model=AggregatedSensorMetricsResponse
 )
 def get_sensor_metrics(
-    device_id: str,
-    start: datetime = Query(..., description="Start time (ISO format)"),
-    end: datetime = Query(..., description="End time (ISO format)"),
-    resolution: str = Query(
-        ..., description="Aggregation bucket: 1m, 5m, 15m, 1h, 6h, 1d"
-    ),
-    session: Session = Depends(get_session),
-):
+    params: ValidatedMetricsParams = Depends(validate_metrics_params),
+) -> AggregatedSensorMetricsResponse:
     """Get aggregated sensor metrics for a device."""
-    device = session.get(Device, device_id)
-    if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
-
-    if resolution not in VALID_RESOLUTIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid resolution. Valid values: {', '.join(sorted(VALID_RESOLUTIONS))}",
-        )
-
-    start = to_naive_utc(start)
-    end = to_naive_utc(end)
-
-    if end <= start:
-        raise HTTPException(
-            status_code=400,
-            detail="End time must be after start time",
-        )
-
-    return get_aggregated_sensor_metrics(session, device_id, start, end, resolution)
+    return get_aggregated_sensor_metrics(
+        params.session, params.device.id, params.start, params.end, params.resolution
+    )
